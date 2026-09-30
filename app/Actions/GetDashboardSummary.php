@@ -51,6 +51,11 @@ class GetDashboardSummary
         if ($cycle !== null) {
             $milestone = $cycle->penandas()->whereNull('selesai_at')->whereDate('tanggal', '>=', $today)
                 ->orderBy('tanggal')->orderBy('id')->first();
+            $harvest = $cycle->penandas()->whereNull('selesai_at')->whereIn('jenis', ['panen', 'afkir'])
+                ->orderBy('tanggal')->orderBy('id')->first();
+            $harvestDays = $harvest ? (int) $today->diffInDays($harvest->tanggal) : null;
+            $duration = $harvest ? (int) $cycle->tanggal_mulai->diffInDays($harvest->tanggal) : 0;
+            $elapsed = (int) $cycle->tanggal_mulai->diffInDays($today, false);
             $cycleSummary = $this->summarize((clone $transactions)->where('sikluses_id', $cycle->id));
 
             $cycleData = [
@@ -63,6 +68,14 @@ class GetDashboardSummary
                 'tanggal_penanda' => $milestone?->tanggal->format('d/m/Y'),
                 'sisa_hari' => $milestone ? (int) $today->diffInDays($milestone->tanggal) : null,
                 'laba_bersih' => $cycleSummary['laba_bersih'],
+                'panen' => $harvest ? [
+                    'nama' => $harvest->nama,
+                    'tanggal' => $harvest->tanggal->translatedFormat('d M Y'),
+                    'sisa_hari' => $harvestDays,
+                    'progres' => $duration > 0
+                        ? (int) max(0, min(100, round($elapsed / $duration * 100)))
+                        : ($harvestDays <= 0 ? 100 : 0),
+                ] : null,
             ];
         }
 
@@ -75,6 +88,7 @@ class GetDashboardSummary
             'transactions' => (clone $periodTransactions)->with(['kategori:id,nama', 'siklus:id,nama'])
                 ->orderByDesc('tanggal')->orderByDesc('id')->limit(5)->get()
                 ->map(fn (Transaksi $transaction): array => [
+                    'id' => $transaction->id,
                     'tanggal' => $transaction->tanggal->format('d/m/Y'),
                     'kategori' => $transaction->kategori->nama,
                     'siklus' => $transaction->siklus?->nama ?? 'Biaya umum usaha',

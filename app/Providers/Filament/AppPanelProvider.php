@@ -21,6 +21,7 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Illuminate\View\View;
 
 class AppPanelProvider extends PanelProvider
 {
@@ -30,6 +31,10 @@ class AppPanelProvider extends PanelProvider
             ->default()
             ->id('app')
             ->path('app')
+            ->viteTheme('resources/css/filament.css')
+            ->brandLogo(fn (): View => view('brand-logo', ['logoPath' => 'logos-black.png']))
+            ->darkModeBrandLogo(fn (): View => view('brand-logo', ['logoPath' => 'logos-white.png']))
+            ->brandLogoHeight('2rem')
             ->login()
             ->registration()
             ->passwordReset()

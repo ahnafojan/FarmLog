@@ -1,7 +1,4 @@
-<div class="farm-home">
-    @push('styles')
-        {{ Illuminate\Support\Facades\Vite::fonts('plus-jakarta-sans') }}
-    @endpush
+<div class="farm-content pt-6 max-lg:pt-4">
     @php
         use App\Filament\Resources\Sikluses\SiklusResource;
         use App\Filament\Resources\Transaksis\TransaksiResource;
@@ -11,41 +8,42 @@
         $rupiah = fn (int $amount): string => ($amount < 0 ? '−' : '').'Rp'.number_format(abs($amount), 0, ',', '.');
     @endphp
 
-    <h1 class="farm-desktop-title">Beranda</h1>
+    <h1 class="hidden text-2xl font-bold tracking-tight lg:block">Beranda</h1>
 
-    <div class="farm-filters">
-        <div class="farm-periods" role="group" aria-label="Periode rekap">
+    <div class="flex flex-wrap items-center gap-3">
+        <x-filament::tabs label="Periode rekap">
             @foreach (['bulan_ini' => 'Bulan ini', 'tahun_ini' => 'Tahun ini', 'pilih_tahun' => 'Pilih tahun'] as $value => $label)
-                <button type="button" wire:click="$set('filters.periode', '{{ $value }}')" @class(['farm-period', 'is-active' => $filters['periode'] === $value]) aria-pressed="{{ $filters['periode'] === $value ? 'true' : 'false' }}">
+                <x-filament::tabs.item :active="$filters['periode'] === $value" wire:click="$set('filters.periode', '{{ $value }}')">
                     {{ $label }}
-                    @if ($value === 'pilih_tahun') <x-filament::icon icon="heroicon-o-calendar-days" /> @endif
-                </button>
+                </x-filament::tabs.item>
             @endforeach
-        </div>
+        </x-filament::tabs>
         @if ($filters['periode'] === 'pilih_tahun')
-            <div class="farm-year">
+            <div class="flex flex-wrap items-center gap-3">
                 <label for="rekap-year">Tahun</label>
-                <input id="rekap-year" type="number" inputmode="numeric" min="1900" max="9999" wire:model.live.blur="filters.tahun" aria-describedby="rekap-year-error" />
+                <x-filament::input.wrapper class="w-28"><x-filament::input id="rekap-year" type="number" inputmode="numeric" min="1900" max="9999" wire:model.live.blur="filters.tahun" aria-describedby="rekap-year-error" /></x-filament::input.wrapper>
                 @error('filters.tahun') <p id="rekap-year-error" role="alert">{{ $message }}</p> @enderror
             </div>
         @endif
-        <div class="farm-basis">
-            <span><x-filament::icon icon="heroicon-o-adjustments-horizontal" /> Dasar rekap</span>
-            <div class="farm-segments" role="group" aria-label="Dasar rekap">
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400"><x-filament::icon icon="heroicon-o-adjustments-horizontal" class="size-5 shrink-0" /> Dasar rekap</span>
+            <x-filament::tabs label="Dasar rekap">
                 @foreach (['siklus_selesai' => 'Siklus selesai', 'tanggal_transaksi' => 'Tgl transaksi'] as $value => $label)
-                    <button type="button" wire:click="$set('filters.dasar', '{{ $value }}')" @class(['is-active' => $filters['dasar'] === $value]) aria-pressed="{{ $filters['dasar'] === $value ? 'true' : 'false' }}">{{ $label }}</button>
+                    <x-filament::tabs.item :active="$filters['dasar'] === $value" wire:click="$set('filters.dasar', '{{ $value }}')">
+                        {{ $label }}
+                    </x-filament::tabs.item>
                 @endforeach
-            </div>
+            </x-filament::tabs>
         </div>
     </div>
 
-    <div class="farm-overview" wire:loading.class="farm-is-loading" wire:target="filters">
+    <div class="grid items-start gap-5 lg:grid-cols-2" wire:loading.class="opacity-60" wire:target="filters">
         <x-farmlog.financial-summary :summary="$data['summary']" :running="$data['running']" />
 
-        <section class="farm-cycles" aria-labelledby="cycles-title">
+        <section aria-labelledby="cycles-title">
             <div class="farm-section-heading">
-                <h2 id="cycles-title"><x-filament::icon icon="heroicon-o-square-3-stack-3d" /> Siklus Berjalan</h2>
-                <a href="{{ SiklusResource::getUrl() }}">Lihat semua <x-filament::icon icon="heroicon-o-chevron-right" /></a>
+                <h2 id="cycles-title"><x-filament::icon icon="heroicon-o-square-3-stack-3d" class="size-5 shrink-0" /> Siklus Berjalan</h2>
+                <a href="{{ SiklusResource::getUrl() }}">Lihat semua <x-filament::icon icon="heroicon-o-chevron-right" class="size-5 shrink-0" /></a>
             </div>
             @if ($cycle)
                 <x-farmlog.cycle-card
@@ -55,28 +53,28 @@
             @else
                 <x-farmlog.empty-state icon="heroicon-o-square-3-stack-3d" title="Belum ada siklus berjalan">
                     <x-slot name="actions">
-                        <a class="farm-primary-link" href="{{ SiklusResource::getUrl('create') }}"><x-filament::icon icon="heroicon-o-plus" /> Buat siklus</a>
+                        <x-filament::button tag="a" :href="SiklusResource::getUrl('create')" icon="heroicon-o-plus">Buat siklus</x-filament::button>
                     </x-slot>
                 </x-farmlog.empty-state>
             @endif
         </section>
     </div>
 
-    <section class="farm-transactions" aria-labelledby="transactions-title">
+    <section class="space-y-3" aria-labelledby="transactions-title">
         <div class="farm-section-heading">
-            <h2 id="transactions-title"><x-filament::icon icon="heroicon-o-document-text" /> Transaksi Terbaru</h2>
-            <a href="{{ TransaksiResource::getUrl() }}">Lihat semua <x-filament::icon icon="heroicon-o-chevron-right" /></a>
+            <h2 id="transactions-title"><x-filament::icon icon="heroicon-o-document-text" class="size-5 shrink-0" /> Transaksi Terbaru</h2>
+            <a href="{{ TransaksiResource::getUrl() }}">Lihat semua <x-filament::icon icon="heroicon-o-chevron-right" class="size-5 shrink-0" /></a>
         </div>
-        <div class="farm-transaction-list">
+        <div class="grid gap-3">
             @forelse ($data['transactions'] as $transaction)
                 @php($isIncome = $transaction['arah'] === 'pemasukan')
-                <div class="farm-card farm-transaction" wire:key="transaction-{{ $transaction['id'] }}">
-                    <span @class(['farm-transaction-icon', 'is-income' => $isIncome])><x-filament::icon :icon="$isIncome ? 'heroicon-o-banknotes' : 'heroicon-o-shopping-bag'" /></span>
-                    <div class="farm-transaction-info">
-                        <div class="farm-transaction-title"><h3 title="{{ $transaction['kategori'] }}">{{ $transaction['kategori'] }}</h3><span @class(['farm-transaction-badge', 'is-income' => $isIncome])>{{ $isIncome ? 'Masuk' : 'Keluar' }}</span></div>
-                        <p class="farm-muted" title="{{ $transaction['siklus'] }}">{{ $transaction['siklus'] }} · {{ $transaction['tanggal'] }}</p>
+                <div class="farm-card flex flex-wrap items-center gap-3" wire:key="transaction-{{ $transaction['id'] }}">
+                    <span @class(['flex size-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400', 'is-income' => $isIncome])><x-filament::icon :icon="$isIncome ? 'heroicon-o-banknotes' : 'heroicon-o-shopping-bag'" class="size-5 shrink-0" /></span>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-2 [&_h3]:truncate [&_h3]:font-semibold"><h3 title="{{ $transaction['kategori'] }}">{{ $transaction['kategori'] }}</h3><x-filament::badge :color="$isIncome ? 'success' : 'danger'">{{ $isIncome ? 'Masuk' : 'Keluar' }}</x-filament::badge></div>
+                        <p class="farm-muted truncate" title="{{ $transaction['siklus'] }}">{{ $transaction['siklus'] }} · {{ $transaction['tanggal'] }}</p>
                     </div>
-                    <strong @class(['farm-transaction-total', 'farm-positive' => $isIncome, 'farm-negative' => ! $isIncome])>{{ $isIncome ? '+' : '−' }}{{ $rupiah($transaction['total']) }}</strong>
+                    <strong @class(['farm-money max-w-full text-right font-semibold', 'text-success-600 dark:text-success-400' => $isIncome, 'text-danger-600 dark:text-danger-400' => ! $isIncome])>{{ $isIncome ? '+' : '−' }}{{ $rupiah($transaction['total']) }}</strong>
                 </div>
             @empty
                 <x-farmlog.empty-state icon="heroicon-o-document-text" description="Belum ada transaksi pada periode ini" />
@@ -84,9 +82,7 @@
         </div>
     </section>
 
-    <button type="button" class="farm-catat" wire:click="mountAction('catat')" wire:loading.attr="disabled" wire:target="mountAction">
-        <x-filament::icon icon="heroicon-o-plus" /> Catat
-    </button>
+    <x-filament::button class="farm-catat" icon="heroicon-o-plus" wire:click="mountAction('catat')" wire:loading.attr="disabled" wire:target="mountAction">Catat</x-filament::button>
 
     <x-filament-actions::modals />
 </div>

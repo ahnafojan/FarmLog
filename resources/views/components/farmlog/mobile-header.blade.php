@@ -6,13 +6,13 @@
 @endphp
 
 <header {{ $attributes->class(['farm-mobile-header']) }}>
-    <div class="farm-brand">
-        <div class="farm-brand-logo"><x-filament-panels::logo /></div>
+    <div class="min-w-0 flex-1">
+        <div class="[&_.fi-logo]:h-7 [&_img]:max-w-11 [&_img]:object-contain"><x-filament-panels::logo /></div>
         <x-filament::dropdown placement="bottom-start">
             <x-slot name="trigger">
-                <button type="button" class="farm-tenant-trigger" aria-label="Ganti usaha">
+                <button type="button" class="flex min-h-11 max-w-full items-center gap-1 text-sm text-gray-500 dark:text-gray-400 [&_span]:truncate" aria-label="Ganti usaha">
                     <span>{{ $tenant->nama }}</span>
-                    <x-filament::icon icon="heroicon-o-chevron-down" />
+                    <x-filament::icon icon="heroicon-o-chevron-down" class="size-5 shrink-0" />
                 </button>
             </x-slot>
             <x-filament::dropdown.list>
@@ -27,13 +27,13 @@
             </x-filament::dropdown.list>
         </x-filament::dropdown>
     </div>
-    <div class="farm-header-actions">
-        <button type="button" class="farm-theme-toggle" aria-label="Ganti tema" x-data x-on:click="$dispatch('theme-changed', $store.theme === 'dark' ? 'light' : 'dark')">
-            <x-filament::icon icon="heroicon-o-moon" class="dark:hidden" />
-            <x-filament::icon icon="heroicon-o-sun" class="hidden dark:block" />
+    <div class="flex shrink-0 items-center gap-1">
+        <button type="button" class="flex size-11 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400" aria-label="Ganti tema" x-data x-on:click="$dispatch('theme-changed', $store.theme === 'dark' ? 'light' : 'dark')">
+            <x-filament::icon icon="heroicon-o-moon" class="size-5 dark:hidden" />
+            <x-filament::icon icon="heroicon-o-sun" class="hidden size-5 dark:block" />
         </button>
-        <a class="farm-profile" href="{{ filament()->getProfileUrl() }}" aria-label="Profil akun">
-            <x-filament::icon icon="heroicon-o-user" />
+        <a class="flex size-11 items-center justify-center rounded-lg text-primary-600 dark:text-primary-400" href="{{ filament()->getProfileUrl() }}" aria-label="Profil akun">
+            <x-filament::icon icon="heroicon-o-user" class="size-5 shrink-0" />
         </a>
     </div>
 </header>

@@ -1,14 +1,14 @@
 @props(['icon', 'title' => null, 'description' => null])
 
-<div {{ $attributes->class(['farm-card', 'farm-empty']) }}>
-    <x-filament::icon :icon="$icon" />
+<div {{ $attributes->class(['farm-card', 'flex flex-col items-center gap-4 text-center']) }}>
+    <x-filament::icon :icon="$icon" class="size-8 shrink-0 text-gray-400" />
 
     @if ($title)
-        <h3>{{ $title }}</h3>
+        <h3 class="font-semibold">{{ $title }}</h3>
     @endif
 
     @if ($description)
-        <p>{{ $description }}</p>
+        <p class="farm-muted">{{ $description }}</p>
     @endif
 
     {{ $slot }}

@@ -11,14 +11,27 @@
     <h1 class="hidden text-2xl font-bold tracking-tight lg:block">Beranda</h1>
 
     <div class="flex flex-wrap items-center gap-3">
-        <x-filament::tabs label="Periode rekap">
-            @foreach (['bulan_ini' => 'Bulan ini', 'tahun_ini' => 'Tahun ini', 'pilih_tahun' => 'Pilih tahun'] as $value => $label)
+        <x-filament::tabs label="Periode rekap" class="max-w-full">
+            @foreach (['bulan_ini' => 'Bulan ini', 'pilih_bulan' => 'Pilih bulan', 'tahun_ini' => 'Tahun ini', 'pilih_tahun' => 'Pilih tahun'] as $value => $label)
                 <x-filament::tabs.item :active="$filters['periode'] === $value" wire:click="$set('filters.periode', '{{ $value }}')">
                     {{ $label }}
                 </x-filament::tabs.item>
             @endforeach
         </x-filament::tabs>
-        @if ($filters['periode'] === 'pilih_tahun')
+        @if ($filters['periode'] === 'pilih_bulan')
+            <div class="flex flex-wrap items-center gap-3">
+                <label for="rekap-month">Bulan</label>
+                <x-filament::input.wrapper class="w-40">
+                    <x-filament::input.select id="rekap-month" wire:model.live="filters.bulan" aria-describedby="rekap-month-error">
+                        @foreach ([1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'] as $month => $label)
+                            <option value="{{ $month }}">{{ $label }}</option>
+                        @endforeach
+                    </x-filament::input.select>
+                </x-filament::input.wrapper>
+                @error('filters.bulan') <p id="rekap-month-error" role="alert">{{ $message }}</p> @enderror
+            </div>
+        @endif
+        @if (in_array($filters['periode'], ['pilih_bulan', 'pilih_tahun'], true))
             <div class="flex flex-wrap items-center gap-3">
                 <label for="rekap-year">Tahun</label>
                 <x-filament::input.wrapper class="w-28"><x-filament::input id="rekap-year" type="number" inputmode="numeric" min="1900" max="9999" wire:model.live.blur="filters.tahun" aria-describedby="rekap-year-error" /></x-filament::input.wrapper>
@@ -59,6 +72,8 @@
             @endif
         </section>
     </div>
+
+    @livewire(\App\Filament\Widgets\RevenueProfitChart::class, ['chartData' => $data['chart'], 'basis' => $filters['dasar']], key('revenue-profit-chart-'.\Filament\Facades\Filament::getTenant()->getKey()))
 
     <section class="space-y-3" aria-labelledby="transactions-title">
         <div class="farm-section-heading">

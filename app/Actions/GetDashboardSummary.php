@@ -12,23 +12,26 @@ use Illuminate\Validation\Rule;
 class GetDashboardSummary
 {
     /**
-     * @return array{summary: array<string, int>, running: array<string, int>|null, cycle: array<string, mixed>|null, transactions: array<int, array<string, mixed>>}
+     * @return array{summary: array<string, int>, chart: array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}, running: array<string, int>|null, cycle: array<string, mixed>|null, transactions: array<int, array<string, mixed>>}
      */
-    public function handle(Usaha $usaha, string $period, int $year, string $basis): array
+    public function handle(Usaha $usaha, string $period, int $year, string $basis, ?int $month = null): array
     {
-        Validator::make(compact('period', 'year', 'basis'), [
-            'period' => [Rule::in(['bulan_ini', 'tahun_ini', 'pilih_tahun'])],
+        Validator::make(compact('period', 'year', 'basis', 'month'), [
+            'period' => [Rule::in(['bulan_ini', 'pilih_bulan', 'tahun_ini', 'pilih_tahun'])],
             'year' => ['integer', 'between:1900,9999'],
+            'month' => ['required_if:period,pilih_bulan', 'nullable', 'integer', 'between:1,12'],
             'basis' => [Rule::in(['siklus_selesai', 'tanggal_transaksi'])],
         ])->validate();
 
         $today = CarbonImmutable::today();
+        $isMonthly = in_array($period, ['bulan_ini', 'pilih_bulan'], true);
         $start = match ($period) {
             'bulan_ini' => $today->startOfMonth(),
+            'pilih_bulan' => CarbonImmutable::create($year, $month, 1)->startOfDay(),
             'tahun_ini' => $today->startOfYear(),
             'pilih_tahun' => CarbonImmutable::create($year, 1, 1)->startOfDay(),
         };
-        $end = $period === 'bulan_ini' ? $start->endOfMonth() : $start->endOfYear();
+        $end = $isMonthly ? $start->endOfMonth() : $start->endOfYear();
         $dates = [$start->toDateString(), $end->toDateString()];
 
         $transactions = Transaksi::query()->where('transaksis.usahas_id', $usaha->id)
@@ -81,6 +84,7 @@ class GetDashboardSummary
 
         return [
             'summary' => $this->summarize(clone $periodTransactions),
+            'chart' => $this->chart(clone $periodTransactions, $start, $end, $isMonthly ? 'day' : 'month', $basis),
             'running' => $basis === 'siklus_selesai'
                 ? $this->summarize((clone $transactions)->whereHas('siklus', fn (Builder $query) => $query->where('status', 'berjalan')))
                 : null,
@@ -104,11 +108,7 @@ class GetDashboardSummary
      */
     private function summarize(Builder $query): array
     {
-        $totals = $query->join('kategoris', 'kategoris.id', '=', 'transaksis.kategoris_id')
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksis.arah = 'pemasukan' THEN transaksis.total ELSE 0 END), 0) AS pemasukan")
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksis.arah = 'pengeluaran' AND kategoris.klasifikasi = 'operasional' THEN transaksis.total ELSE 0 END), 0) AS operasional")
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksis.arah = 'pengeluaran' AND kategoris.klasifikasi = 'investasi' THEN transaksis.total ELSE 0 END), 0) AS investasi")
-            ->toBase()->first();
+        $totals = $this->financialTotals($query)->toBase()->first();
 
         $income = (int) $totals->pemasukan;
         $operational = (int) $totals->operasional;
@@ -119,5 +119,50 @@ class GetDashboardSummary
             'investasi' => (int) $totals->investasi,
             'laba_bersih' => $income - $operational,
         ];
+    }
+
+    /**
+     * @param  Builder<Transaksi>  $query
+     * @return array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}
+     */
+    private function chart(Builder $query, CarbonImmutable $start, CarbonImmutable $end, string $interval, string $basis): array
+    {
+        $dateColumn = 'transaksis.tanggal';
+
+        if ($basis === 'siklus_selesai') {
+            $query->leftJoin('sikluses', 'sikluses.id', '=', 'transaksis.sikluses_id');
+            $dateColumn = 'COALESCE(sikluses.tanggal_selesai, transaksis.tanggal)';
+        }
+
+        $bucket = "DATE_TRUNC('{$interval}', {$dateColumn})::date";
+        $totals = $this->financialTotals($query)
+            ->selectRaw("{$bucket} AS period_date")
+            ->groupByRaw($bucket)
+            ->toBase()->get()->keyBy('period_date');
+        $chart = ['labels' => [], 'pemasukan' => [], 'laba_bersih' => []];
+
+        for ($date = $start; $date <= $end; $date = $date->add($interval, 1)) {
+            $total = $totals->get($date->toDateString());
+            $income = (int) ($total?->pemasukan ?? 0);
+            $operational = (int) ($total?->operasional ?? 0);
+
+            $chart['labels'][] = $date->translatedFormat($interval === 'day' ? 'd M' : 'M Y');
+            $chart['pemasukan'][] = $income;
+            $chart['laba_bersih'][] = $income - $operational;
+        }
+
+        return $chart;
+    }
+
+    /**
+     * @param  Builder<Transaksi>  $query
+     * @return Builder<Transaksi>
+     */
+    private function financialTotals(Builder $query): Builder
+    {
+        return $query->join('kategoris', 'kategoris.id', '=', 'transaksis.kategoris_id')
+            ->selectRaw("COALESCE(SUM(CASE WHEN transaksis.arah = 'pemasukan' THEN transaksis.total ELSE 0 END), 0) AS pemasukan")
+            ->selectRaw("COALESCE(SUM(CASE WHEN transaksis.arah = 'pengeluaran' AND kategoris.klasifikasi = 'operasional' THEN transaksis.total ELSE 0 END), 0) AS operasional")
+            ->selectRaw("COALESCE(SUM(CASE WHEN transaksis.arah = 'pengeluaran' AND kategoris.klasifikasi = 'investasi' THEN transaksis.total ELSE 0 END), 0) AS investasi");
     }
 }

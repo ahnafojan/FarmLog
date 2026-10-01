@@ -22,7 +22,7 @@ class Dashboard extends BaseDashboard
     protected array $extraBodyAttributes = ['class' => 'farmlog-dashboard'];
 
     /**
-     * @var array{periode?: string, tahun?: int|string|null, dasar?: string}
+     * @var array{periode?: string, tahun?: int|string|null, bulan?: int|string|null, dasar?: string}
      */
     public array $filters = [];
 
@@ -31,6 +31,7 @@ class Dashboard extends BaseDashboard
         $this->filters = [
             'periode' => 'bulan_ini',
             'tahun' => now()->year,
+            'bulan' => now()->month,
             'dasar' => $this->usaha()->rekap_dasar,
         ];
     }
@@ -49,8 +50,9 @@ class Dashboard extends BaseDashboard
         unset($this->dashboardData);
 
         $this->validate([
-            'filters.periode' => ['required', Rule::in(['bulan_ini', 'tahun_ini', 'pilih_tahun'])],
-            'filters.tahun' => ['required_if:filters.periode,pilih_tahun', 'nullable', 'integer', 'between:1900,9999'],
+            'filters.periode' => ['required', Rule::in(['bulan_ini', 'pilih_bulan', 'tahun_ini', 'pilih_tahun'])],
+            'filters.tahun' => ['required_if:filters.periode,pilih_bulan,pilih_tahun', 'nullable', 'integer', 'between:1900,9999'],
+            'filters.bulan' => ['required_if:filters.periode,pilih_bulan', 'nullable', 'integer', 'between:1,12'],
             'filters.dasar' => ['required', Rule::in(['siklus_selesai', 'tanggal_transaksi'])],
         ]);
 
@@ -63,7 +65,7 @@ class Dashboard extends BaseDashboard
     }
 
     /**
-     * @return array{summary: array<string, int>, running: array<string, int>|null, cycle: array<string, mixed>|null, transactions: array<int, array<string, mixed>>}
+     * @return array{summary: array<string, int>, chart: array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}, running: array<string, int>|null, cycle: array<string, mixed>|null, transactions: array<int, array<string, mixed>>}
      */
     #[Computed]
     public function dashboardData(): array
@@ -72,12 +74,14 @@ class Dashboard extends BaseDashboard
         $period = $this->filters['periode'] ?? 'bulan_ini';
         $basis = $this->filters['dasar'] ?? $usaha->rekap_dasar;
         $year = filter_var($this->filters['tahun'] ?? now()->year, FILTER_VALIDATE_INT);
+        $month = filter_var($this->filters['bulan'] ?? now()->month, FILTER_VALIDATE_INT);
 
         return app(GetDashboardSummary::class)->handle(
             $usaha,
-            in_array($period, ['bulan_ini', 'tahun_ini', 'pilih_tahun'], true) ? $period : 'bulan_ini',
+            in_array($period, ['bulan_ini', 'pilih_bulan', 'tahun_ini', 'pilih_tahun'], true) ? $period : 'bulan_ini',
             $year !== false && $year >= 1900 && $year <= 9999 ? $year : now()->year,
             in_array($basis, ['siklus_selesai', 'tanggal_transaksi'], true) ? $basis : $usaha->rekap_dasar,
+            $month !== false && $month >= 1 && $month <= 12 ? $month : now()->month,
         );
     }
 

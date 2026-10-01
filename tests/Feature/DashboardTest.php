@@ -6,10 +6,12 @@ use App\Actions\GetDashboardSummary;
 use App\Actions\SaveTransaksi;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Resources\Transaksis\Pages\ManageTransaksis;
+use App\Filament\Widgets\RevenueProfitChart;
 use App\Models\Siklus;
 use App\Models\TemplateUsaha;
 use App\Models\Usaha;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\TemplateKategoriSeeder;
 use Database\Seeders\TemplatePenandaSeeder;
 use Filament\Facades\Filament;
@@ -59,6 +61,7 @@ test('dashboard renders empty states and navigation without a cycle', function (
 
     $this->get(Dashboard::getUrl(tenant: $usaha))
         ->assertOk()
+        ->assertSeeLivewire(RevenueProfitChart::class)
         ->assertSee('Belum ada siklus berjalan')
         ->assertSee('Belum ada transaksi pada periode ini')
         ->assertSee('Buat siklus')
@@ -165,7 +168,7 @@ test('dashboard changes period and validates the custom year', function () {
 test('dashboard catat saves a transaction and refreshes the summary', function () {
     [, $usaha] = dashboardOwner();
 
-    Livewire::test(Dashboard::class)
+    $page = Livewire::test(Dashboard::class)
         ->callAction('catat', data: [
             'arah' => 'pengeluaran', 'tanggal' => '2026-09-30',
             'kategoris_id' => $usaha->kategoris()->where('nama', 'Listrik/air')->sole()->id,
@@ -177,6 +180,189 @@ test('dashboard catat saves a transaction and refreshes the summary', function (
         ->assertSee('Rugi');
 
     $this->assertDatabaseHas('transaksis', ['usahas_id' => $usaha->id, 'total' => 150000, 'sikluses_id' => null]);
+    expect($page->get('dashboardData')['chart']['laba_bersih'][29])->toBe(-150000);
+});
+
+test('selected month filters summary chart and recent transactions across month boundaries', function (string $firstDay, string $lastDay, int $days) {
+    [$user, $usaha] = dashboardOwner();
+    $start = CarbonImmutable::parse($firstDay);
+    $end = CarbonImmutable::parse($lastDay);
+    $category = $usaha->kategoris()->where('nama', 'Listrik/air')->sole();
+    $records = [];
+
+    foreach ([$start->subDay(), $start, $end, $end->addDay(), $start->subYear()] as $date) {
+        $records[] = app(SaveTransaksi::class)->handle($user, $usaha, [
+            'arah' => 'pengeluaran', 'tanggal' => $date->toDateString(),
+            'kategoris_id' => $category->id, 'total' => 150000,
+        ]);
+    }
+
+    $page = Livewire::test(Dashboard::class)
+        ->set('filters.dasar', 'tanggal_transaksi')
+        ->set('filters.periode', 'pilih_bulan')
+        ->set('filters.tahun', $start->year)
+        ->set('filters.bulan', (string) $start->month)
+        ->assertHasNoErrors()
+        ->assertSee('Januari')
+        ->assertSee('Desember');
+    $data = $page->get('dashboardData');
+
+    expect($data['summary']['laba_bersih'])->toBe(-300000);
+    expect($data['chart']['labels'])->toHaveCount($days);
+    expect($data['chart']['laba_bersih'])->toBe([-150000, ...array_fill(0, $days - 2, 0), -150000]);
+    expect(array_column($data['transactions'], 'id'))->toBe([$records[2]->id, $records[1]->id]);
+
+    $page->set('filters.periode', 'bulan_ini');
+    expect($page->get('dashboardData')['summary']['laba_bersih'])->toBe(0);
+    expect($page->get('dashboardData')['chart']['labels'])->toHaveCount(30)->toContain('01 Sep');
+})->with([
+    'January' => ['2025-01-01', '2025-01-31', 31],
+    'December' => ['2025-12-01', '2025-12-31', 31],
+    'leap February' => ['2024-02-01', '2024-02-29', 29],
+    'regular February' => ['2025-02-01', '2025-02-28', 28],
+]);
+
+test('selected month follows the reporting basis for completed cycles', function () {
+    [$user, $usaha] = dashboardOwner();
+    $cycle = dashboardCycle($user, $usaha);
+    $cycle->forceFill(['status' => 'selesai', 'tanggal_selesai' => '2026-10-05'])->save();
+
+    $page = Livewire::test(Dashboard::class)
+        ->set('filters.periode', 'pilih_bulan')
+        ->set('filters.bulan', 10)
+        ->assertHasNoErrors();
+    $data = $page->get('dashboardData');
+
+    expect($data['summary']['laba_bersih'])->toBe(-1000000);
+    expect($data['chart']['laba_bersih'])->toHaveCount(31);
+    expect($data['chart']['laba_bersih'][4])->toBe(-1000000);
+    expect($data['transactions'])->toHaveCount(1);
+
+    $page->set('filters.dasar', 'tanggal_transaksi');
+    expect($page->get('dashboardData')['summary']['laba_bersih'])->toBe(0);
+    expect($page->get('dashboardData')['chart']['laba_bersih'])->toBe(array_fill(0, 31, 0));
+    expect($page->get('dashboardData')['transactions'])->toBeEmpty();
+});
+
+test('selected month rejects invalid month and year values', function (string $field, mixed $value, string $rule) {
+    dashboardOwner();
+
+    Livewire::test(Dashboard::class)
+        ->set('filters.periode', 'pilih_bulan')
+        ->set('filters.'.$field, $value)
+        ->assertHasErrors(['filters.'.$field => $rule]);
+})->with([
+    'missing month' => ['bulan', null, 'required_if'],
+    'month too low' => ['bulan', 0, 'between'],
+    'month too high' => ['bulan', 13, 'between'],
+    'invalid month' => ['bulan', 'invalid', 'integer'],
+    'missing year' => ['tahun', null, 'required_if'],
+    'year too low' => ['tahun', 1899, 'between'],
+    'year too high' => ['tahun', 10000, 'between'],
+]);
+
+test('chart groups revenue and profit by transaction date and excludes investment from profit', function () {
+    [$user, $usaha] = dashboardOwner();
+    $cycle = dashboardCycle($user, $usaha);
+    app(SaveTransaksi::class)->handle($user, $usaha, [
+        'arah' => 'pemasukan', 'tanggal' => '2026-09-30',
+        'kategoris_id' => $usaha->kategoris()->where('arah', 'pemasukan')->sole()->id,
+        'sikluses_id' => $cycle->id, 'qty' => 10, 'satuan' => 'kg', 'harga_satuan' => 200000, 'total' => 2000000,
+    ]);
+    app(SaveTransaksi::class)->handle($user, $usaha, [
+        'arah' => 'pengeluaran', 'tanggal' => '2026-09-30',
+        'kategoris_id' => $usaha->kategoris()->where('klasifikasi', 'investasi')->firstOrFail()->id,
+        'total' => 500000,
+    ]);
+
+    $page = Livewire::test(Dashboard::class)->set('filters.dasar', 'tanggal_transaksi');
+    $data = $page->get('dashboardData');
+
+    expect($data['chart']['labels'])->toHaveCount(30);
+    expect($data['chart']['pemasukan'])->toBe([...array_fill(0, 29, 0), 2000000]);
+    expect($data['chart']['laba_bersih'])->toBe([-1000000, ...array_fill(0, 28, 0), 2000000]);
+    expect(array_sum($data['chart']['laba_bersih']))->toBe($data['summary']['laba_bersih']);
+});
+
+test('chart recognizes all cycle transactions on completion and general expenses on their own dates', function () {
+    [$user, $usaha] = dashboardOwner();
+    $cycle = dashboardCycle($user, $usaha);
+    app(SaveTransaksi::class)->handle($user, $usaha, [
+        'arah' => 'pemasukan', 'tanggal' => '2026-09-20',
+        'kategoris_id' => $usaha->kategoris()->where('arah', 'pemasukan')->sole()->id,
+        'sikluses_id' => $cycle->id, 'qty' => 10, 'satuan' => 'kg', 'harga_satuan' => 250000, 'total' => 2500000,
+    ]);
+    app(SaveTransaksi::class)->handle($user, $usaha, [
+        'arah' => 'pengeluaran', 'tanggal' => '2026-09-15',
+        'kategoris_id' => $usaha->kategoris()->where('nama', 'Listrik/air')->sole()->id,
+        'total' => 100000,
+    ]);
+    $cycle->forceFill(['status' => 'selesai', 'tanggal_selesai' => '2026-10-05'])->save();
+    dashboardCycle($user, $usaha);
+
+    $page = Livewire::test(Dashboard::class)->set('filters.periode', 'tahun_ini');
+    $data = $page->get('dashboardData');
+
+    expect($data['chart']['labels'])->toHaveCount(12);
+    expect($data['chart']['pemasukan'])->toBe([...array_fill(0, 9, 0), 2500000, 0, 0]);
+    expect($data['chart']['laba_bersih'])->toBe([...array_fill(0, 8, 0), -100000, 1500000, 0, 0]);
+    expect(array_sum($data['chart']['laba_bersih']))->toBe($data['summary']['laba_bersih']);
+
+    $page->set('filters.periode', 'bulan_ini');
+    expect(array_sum($page->get('dashboardData')['chart']['laba_bersih']))->toBe(-100000);
+});
+
+test('chart uses the selected year and fills periods without transactions with zero', function () {
+    [$user, $usaha] = dashboardOwner();
+    dashboardCycle($user, $usaha);
+
+    $page = Livewire::test(Dashboard::class)
+        ->set('filters.dasar', 'tanggal_transaksi')
+        ->set('filters.periode', 'pilih_tahun')
+        ->set('filters.tahun', 2025);
+
+    expect($page->get('dashboardData')['chart'])->toBe([
+        'labels' => ['Jan 2025', 'Feb 2025', 'Mar 2025', 'Apr 2025', 'Mei 2025', 'Jun 2025', 'Jul 2025', 'Agt 2025', 'Sep 2025', 'Okt 2025', 'Nov 2025', 'Des 2025'],
+        'pemasukan' => array_fill(0, 12, 0),
+        'laba_bersih' => array_fill(0, 12, 0),
+    ]);
+
+    $page->set('filters.tahun', 2026);
+    expect($page->get('dashboardData')['chart']['laba_bersih'][8])->toBe(-1000000);
+});
+
+test('chart excludes deleted transactions deleted cycles and another tenants records', function () {
+    [$user, $usaha] = dashboardOwner();
+    $cycle = dashboardCycle($user, $usaha);
+    $cycle->delete();
+    $transaction = app(SaveTransaksi::class)->handle($user, $usaha, [
+        'arah' => 'pengeluaran', 'tanggal' => '2026-09-30',
+        'kategoris_id' => $usaha->kategoris()->where('nama', 'Listrik/air')->sole()->id,
+        'total' => 500000,
+    ]);
+    $transaction->delete();
+    Filament::setTenant(null);
+    $otherUser = User::factory()->create();
+    $otherUsaha = app(CreateUsaha::class)->handle($otherUser, [
+        'nama' => 'Usaha lain', 'template_usahas_id' => $usaha->template_usahas_id,
+    ]);
+    Filament::setTenant($otherUsaha);
+    dashboardCycle($otherUser, $otherUsaha);
+    $this->actingAs($user);
+    Filament::setTenant($usaha);
+
+    $page = Livewire::test(Dashboard::class)->set('filters.dasar', 'tanggal_transaksi');
+
+    expect($page->get('dashboardData')['chart']['laba_bersih'])->toBe(array_fill(0, 30, 0));
+});
+
+test('chart includes leap day when showing the current month', function () {
+    dashboardOwner();
+    $this->travelTo(now()->setDate(2024, 2, 15));
+
+    $page = Livewire::test(Dashboard::class);
+
+    expect($page->get('dashboardData')['chart']['labels'])->toHaveCount(29)->toContain('29 Feb');
 });
 
 test('nearest schedule is separate from the harvest estimate and excludes completed milestones', function () {

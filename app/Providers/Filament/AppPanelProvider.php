@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\Tenancy\EditUsaha;
 use App\Filament\Pages\Tenancy\RegisterUsaha;
@@ -40,7 +41,7 @@ class AppPanelProvider extends PanelProvider
             ->login()
             ->registration()
             ->passwordReset()
-            ->profile()
+            ->profile(EditProfile::class)
             ->tenant(Usaha::class, ownershipRelationship: 'usaha')
             ->tenantRegistration(RegisterUsaha::class)
             ->tenantProfile(EditUsaha::class)

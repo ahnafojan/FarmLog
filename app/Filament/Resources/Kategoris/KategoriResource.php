@@ -14,8 +14,10 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontWeight;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -95,11 +97,28 @@ class KategoriResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->defaultSort('urutan')->columns([
-            TextColumn::make('nama')->label('Kategori')->searchable(),
-            TextColumn::make('arah')->label('Jenis')->formatStateUsing(fn (string $state): string => ucfirst($state)),
-            TextColumn::make('klasifikasi')->label('Klasifikasi')->placeholder('—'),
-            IconColumn::make('pakai_kuantitas')->label('Kuantitas')->boolean(),
-            IconColumn::make('aktif')->label('Aktif')->boolean(),
+            Split::make([
+                Stack::make([
+                    TextColumn::make('nama')->label('Kategori')->searchable()
+                        ->weight(FontWeight::SemiBold)->wrap()->extraAttributes(['class' => 'wrap-anywhere']),
+                    TextColumn::make('klasifikasi')->label('Klasifikasi')->placeholder('Tanpa klasifikasi')
+                        ->formatStateUsing(fn (string $state): string => 'Klasifikasi: '.ucfirst($state))
+                        ->color('gray')->wrap(),
+                ])->space(1),
+                Stack::make([
+                    Split::make([
+                        TextColumn::make('arah')->label('Jenis')->badge()->grow(false)
+                            ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                            ->color(fn (string $state): string => $state === 'pemasukan' ? 'success' : 'danger'),
+                        TextColumn::make('aktif')->label('Status')->badge()->grow(false)
+                            ->formatStateUsing(fn (bool $state): string => $state ? 'Aktif' : 'Nonaktif')
+                            ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
+                    ]),
+                    TextColumn::make('pakai_kuantitas')->label('Kuantitas')
+                        ->formatStateUsing(fn (bool $state): string => $state ? 'Menggunakan kuantitas' : 'Tanpa kuantitas')
+                        ->color('gray')->wrap(),
+                ])->space(1),
+            ])->from('lg'),
         ])->filters([
             SelectFilter::make('arah')->label('Jenis')->placeholder('Semua jenis')->options(['pengeluaran' => 'Pengeluaran', 'pemasukan' => 'Pemasukan']),
         ])->recordActions([

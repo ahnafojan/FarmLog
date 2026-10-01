@@ -21,7 +21,11 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontWeight;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\Layout\Panel;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -118,14 +122,33 @@ class TransaksiResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->defaultSort('tanggal', 'desc')->columns([
-            TextColumn::make('tanggal')->label('Tanggal')->date('d/m/Y')->sortable(),
-            TextColumn::make('arah')->label('Jenis')->badge()->formatStateUsing(fn (string $state): string => $state === 'pemasukan' ? 'Masuk' : 'Keluar')
-                ->color(fn (string $state): string => $state === 'pemasukan' ? 'success' : 'danger'),
-            TextColumn::make('kategori.nama')->label('Kategori')->searchable(),
-            TextColumn::make('siklus.nama')->label('Siklus')->placeholder('Biaya umum usaha'),
-            TextColumn::make('total')->label('Total')->money('IDR', locale: 'id')->sortable(),
-            TextColumn::make('pembeli')->label('Pembeli')->toggleable(isToggledHiddenByDefault: true),
-            TextColumn::make('catatan')->label('Catatan')->limit(50)->toggleable(isToggledHiddenByDefault: true),
+            Split::make([
+                Stack::make([
+                    TextColumn::make('kategori.nama')->label('Kategori')->searchable()
+                        ->weight(FontWeight::SemiBold)->wrap()->extraAttributes(['class' => 'wrap-anywhere']),
+                    TextColumn::make('siklus.nama')->label('Siklus')->placeholder('Biaya umum usaha')
+                        ->icon(Heroicon::OutlinedArrowsRightLeft)->color('gray')->wrap()->extraAttributes(['class' => 'wrap-anywhere']),
+                ])->space(1),
+                Stack::make([
+                    TextColumn::make('total')->label('Total')->money('IDR', locale: 'id')->sortable()
+                        ->weight(FontWeight::Bold)->wrap(),
+                    Split::make([
+                        TextColumn::make('arah')->label('Jenis')->badge()->grow(false)
+                            ->formatStateUsing(fn (string $state): string => $state === 'pemasukan' ? 'Masuk' : 'Keluar')
+                            ->color(fn (string $state): string => $state === 'pemasukan' ? 'success' : 'danger'),
+                        TextColumn::make('tanggal')->label('Tanggal')->date('d M Y')->sortable()
+                            ->icon(Heroicon::OutlinedCalendarDays)->color('gray')->wrap(),
+                    ]),
+                ])->space(1),
+            ])->from('lg'),
+            Panel::make([
+                Stack::make([
+                    TextColumn::make('pembeli')->label('Pembeli')->description('Pembeli', position: 'above')
+                        ->placeholder('Tidak ada pembeli')->wrap()->extraAttributes(['class' => 'wrap-anywhere']),
+                    TextColumn::make('catatan')->label('Catatan')->description('Catatan', position: 'above')
+                        ->placeholder('Tidak ada catatan')->wrap()->extraAttributes(['class' => 'wrap-anywhere']),
+                ])->space(3),
+            ])->collapsible(),
         ])->filters([
             SelectFilter::make('arah')->label('Jenis')->placeholder('Semua transaksi')->options(['pengeluaran' => 'Keluar', 'pemasukan' => 'Masuk']),
         ])->recordActions([

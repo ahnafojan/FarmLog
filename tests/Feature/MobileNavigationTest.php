@@ -46,3 +46,39 @@ test('shared mobile navigation highlights the current resource', function () {
     expect($links->length)->toBe(1);
     expect(trim($links->item(0)->textContent))->toBe('Transaksi');
 });
+
+test('profile keeps its navigation within the users businesses', function (?string $tenantId, bool $hasBusinesses, string $expectedPath) {
+    $usahas = $hasBusinesses ? collect([
+        (new Usaha)->forceFill(['id' => 42, 'nama' => 'Kolam <Budi>']),
+        (new Usaha)->forceFill(['id' => 84, 'nama' => 'Kolam Kedua']),
+    ]) : collect();
+    $user = Mockery::mock(User::class)->makePartial();
+    $user->forceFill(['id' => 7, 'name' => 'Budi', 'email' => 'budi@example.com']);
+    $user->shouldReceive('getTenants')->andReturn($usahas);
+    $this->actingAs($user);
+
+    $response = $this->get(Filament::getProfileUrl(['tenant' => $tenantId]));
+
+    $response->assertOk()->assertSee('Profil akun')->assertSee('Informasi akun')->assertSee('Keamanan akun');
+    $document = new DOMDocument;
+    @$document->loadHTML($response->getContent());
+    $xpath = new DOMXPath($document);
+    $navigation = $xpath->query('//nav[@aria-label="Navigasi utama"]');
+    $activeLinks = $xpath->query('//nav[@aria-label="Navigasi utama"]/a[@aria-current="page"]');
+    $cycleLink = $xpath->query('//nav[@aria-label="Navigasi utama"]/a')->item(1);
+
+    expect($navigation->length)->toBe(1);
+    expect($activeLinks->length)->toBe(1);
+    expect(trim($activeLinks->item(0)->textContent))->toBe('Akun');
+    expect(parse_url($cycleLink->getAttribute('href'), PHP_URL_PATH))->toBe($expectedPath);
+    expect($xpath->query('//header//button[@aria-label="Ganti tema"]')->length)->toBe(1);
+})->with([
+    'selected business' => ['84', true, '/app/84/sikluses'],
+    'direct profile visit' => [null, true, '/app/42/sikluses'],
+    'unowned business falls back to own business' => ['999', true, '/app/42/sikluses'],
+    'account without a business' => [null, false, '/app/new'],
+]);
+
+test('guests are redirected to login from the profile', function () {
+    $this->get(Filament::getProfileUrl())->assertRedirect(Filament::getLoginUrl());
+});

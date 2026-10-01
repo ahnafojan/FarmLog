@@ -34,7 +34,7 @@ body:has(.farm-mobile-header), .farmlog-dashboard {
 }
 
 .farm-home { font-family: 'Plus Jakarta Sans', var(--font-sans); color: var(--farm-text); padding-block: 24px 110px; font-size: 16px; line-height: 1.5; }
-.farm-home svg { flex-shrink: 0; width: 22px; height: 22px; }
+.farm-home svg, :where(.farm-finance, .farm-cycle, .farm-empty) svg { flex-shrink: 0; width: 22px; height: 22px; }
 .farm-home button, .farm-home a { -webkit-tap-highlight-color: transparent; }
 .farm-home button { cursor: pointer; }
 .farm-home button:disabled { opacity: .6; cursor: wait; }

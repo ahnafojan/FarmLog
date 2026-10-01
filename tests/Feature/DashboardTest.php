@@ -5,6 +5,7 @@ use App\Actions\CreateUsaha;
 use App\Actions\GetDashboardSummary;
 use App\Actions\SaveTransaksi;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Resources\Transaksis\Pages\ManageTransaksis;
 use App\Models\Siklus;
 use App\Models\TemplateUsaha;
 use App\Models\Usaha;
@@ -63,6 +64,53 @@ test('dashboard renders empty states and navigation without a cycle', function (
         ->assertSee('Buat siklus')
         ->assertSee('Navigasi utama');
 });
+
+test('tenant pages share mobile navigation with the correct active menu', function (string $path, ?string $activeLabel) {
+    [, $usaha] = dashboardOwner();
+
+    $response = $this->get('/app/'.$usaha->id.$path);
+    $response->assertOk()->assertSee('Ganti usaha')->assertSee('Navigasi utama');
+
+    $document = new DOMDocument;
+    @$document->loadHTML($response->getContent());
+    $xpath = new DOMXPath($document);
+    $activeLinks = $xpath->query('//nav[@aria-label="Navigasi utama"]/a[@aria-current="page"]');
+
+    expect($xpath->query('//nav[@aria-label="Navigasi utama"]')->length)->toBe(1);
+    expect($activeLinks->length)->toBe($activeLabel === null ? 0 : 1);
+
+    if ($activeLabel !== null) {
+        expect(trim($activeLinks->item(0)->textContent))->toBe($activeLabel);
+    }
+})->with([
+    'dashboard' => ['', 'Beranda'],
+    'transactions' => ['/transaksis', 'Transaksi'],
+    'cycles' => ['/sikluses', 'Siklus'],
+    'create cycle' => ['/sikluses/create', 'Siklus'],
+    'categories' => ['/kategoris', null],
+    'tenant settings' => ['/profile', null],
+]);
+
+test('tenant registration does not render mobile tenant navigation', function () {
+    $this->actingAs(User::factory()->create());
+    Filament::setTenant(null);
+
+    $this->get('/app/new')->assertOk()->assertDontSee('Navigasi utama')->assertDontSee('Ganti usaha');
+});
+
+test('dashboard and transaction list use the same transaction modal', function (string $page, string $action) {
+    dashboardOwner();
+
+    Livewire::test($page)
+        ->mountAction($action)
+        ->assertSee('Catat transaksi')
+        ->assertSee('Simpan')
+        ->assertSee('Kategori')
+        ->assertSee('Total');
+})->with([
+    'dashboard' => [Dashboard::class, 'catat'],
+    'transactions' => [ManageTransaksis::class, 'create'],
+]);
 
 test('dashboard requires authentication and rejects another owners usaha', function () {
     [, $usaha] = dashboardOwner();

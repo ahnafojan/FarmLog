@@ -1,9 +1,9 @@
 @import '../../vendor/filament/filament/resources/css/theme.css';
 
-@source '../views/dashboard.blade.php';
+@source '../views/**/*.blade.php';
 @source '../../app/Filament/**/*.php';
 
-.farmlog-dashboard {
+body:has(.farm-mobile-header), .farmlog-dashboard {
     --farm-bg: #faf8ff;
     --farm-surface: #fff;
     --farm-soft: #f5f2ff;
@@ -15,10 +15,11 @@
     --farm-positive: #007451;
     --farm-negative: #ce003b;
     --farm-border: #f0edf5;
-    background: var(--farm-bg);
 }
 
-.dark .farmlog-dashboard {
+.farmlog-dashboard { background: var(--farm-bg); }
+
+.dark body:has(.farm-mobile-header), .dark .farmlog-dashboard {
     --farm-bg: #121317;
     --farm-surface: #1d1f25;
     --farm-soft: #252630;
@@ -132,9 +133,10 @@
 .farm-is-loading { opacity: .6; }
 
 @media (width < 1024px) {
-    .farmlog-dashboard .fi-topbar-ctn, .farmlog-dashboard .fi-sidebar, .farmlog-dashboard .fi-sidebar-close-overlay { display: none; }
-    .farmlog-dashboard .fi-main { padding: 0 16px; }
-    .farm-home { padding-top: 0; padding-bottom: calc(175px + env(safe-area-inset-bottom, 0px)); }
+    body:has(.farm-mobile-header) { background: var(--farm-bg); }
+    body:has(.farm-mobile-header) .fi-topbar-ctn, body:has(.farm-mobile-header) .fi-sidebar, body:has(.farm-mobile-header) .fi-sidebar-close-overlay { display: none; }
+    body:has(.farm-mobile-header) .fi-main { padding: 0 16px calc(100px + env(safe-area-inset-bottom, 0px)); }
+    .farm-home { padding-top: 0; padding-bottom: 75px; }
     .farm-desktop-title { display: none; }
     .farm-mobile-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; margin: 0 -16px 14px; border-bottom: 1px solid var(--farm-border); }
     .farm-brand { min-width: 0; flex: 1; }
@@ -180,3 +182,8 @@
     .farm-transaction-total { font-size: 14px; }
     .farm-transaction-title h3 { font-size: 14px; }
 }
+
+.farm-mobile-header, .farm-bottom-nav { font-family: var(--font-sans); color: var(--farm-text); }
+.farm-mobile-header svg { flex-shrink: 0; width: 22px; height: 22px; }
+.farm-mobile-header .farm-tenant-trigger svg { width: 14px; height: 14px; }
+.farm-mobile-header :is(a, button):focus-visible, .farm-bottom-nav a:focus-visible { outline: 3px solid var(--farm-accent); outline-offset: 4px; }

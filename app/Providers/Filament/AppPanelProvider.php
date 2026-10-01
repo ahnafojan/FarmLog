@@ -6,6 +6,7 @@ use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\Tenancy\EditUsaha;
 use App\Filament\Pages\Tenancy\RegisterUsaha;
 use App\Models\Usaha;
+use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
 use Filament\Http\Middleware\Authenticate;
@@ -15,6 +16,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -42,6 +44,23 @@ class AppPanelProvider extends PanelProvider
             ->tenant(Usaha::class, ownershipRelationship: 'usaha')
             ->tenantRegistration(RegisterUsaha::class)
             ->tenantProfile(EditUsaha::class)
+            ->renderHook(PanelsRenderHook::CONTENT_START, function (): View|string {
+                $user = Filament::auth()->user();
+                $tenant = Filament::getTenant();
+                $panel = Filament::getCurrentPanel();
+
+                if (! ($user instanceof User) || ! ($tenant instanceof Usaha) || $panel === null) {
+                    return '';
+                }
+
+                return view('filament.hooks.mobile-header', [
+                    'tenant' => $tenant,
+                    'usahas' => $user->getTenants($panel),
+                ]);
+            })
+            ->renderHook(PanelsRenderHook::CONTENT_END, fn (): View|string => Filament::auth()->check() && Filament::getTenant() instanceof Usaha
+                    ? view('filament.hooks.bottom-navigation')
+                    : '')
             ->databaseTransactions()
             ->bootUsing(function (): void {
                 app()->setLocale('id');

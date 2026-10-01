@@ -3,14 +3,11 @@
 namespace App\Filament\Pages;
 
 use App\Actions\GetDashboardSummary;
-use App\Filament\Resources\Transaksis\TransaksiResource;
-use App\Models\Transaksi;
+use App\Filament\Actions\CatatTransaksiAction;
 use App\Models\Usaha;
 use Filament\Actions\CreateAction;
 use Filament\Facades\Filament;
 use Filament\Pages\Dashboard as BaseDashboard;
-use Filament\Schemas\Schema;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -45,13 +42,6 @@ class Dashboard extends BaseDashboard
         Gate::authorize('view', $usaha);
 
         return $usaha;
-    }
-
-    /** @return Collection<int, Usaha> */
-    #[Computed]
-    public function availableUsahas(): Collection
-    {
-        return Filament::auth()->user()->getTenants(Filament::getCurrentPanel());
     }
 
     public function updatedFilters(): void
@@ -93,11 +83,7 @@ class Dashboard extends BaseDashboard
 
     public function catatAction(): CreateAction
     {
-        return CreateAction::make('catat')->label('Catat')->modalHeading('Catat transaksi')
-            ->modalSubmitActionLabel('Simpan')
-            ->model(Transaksi::class)->createAnother(false)
-            ->schema(fn (Schema $schema): Schema => TransaksiResource::form($schema))
-            ->using(fn (array $data, CreateAction $action): Transaksi => TransaksiResource::saveTransaction($data, $action))
+        return CatatTransaksiAction::make('catat')
             ->after(function (): void {
                 unset($this->dashboardData);
             });

@@ -1,0 +1,1 @@
+<x-farmlog.bottom-navigation />

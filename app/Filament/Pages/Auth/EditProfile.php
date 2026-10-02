@@ -13,7 +13,7 @@ class EditProfile extends BaseEditProfile
     protected string $view = 'filament.pages.auth.edit-profile';
 
     #[Url(as: 'tenant')]
-    public ?string $tenantId = null;
+    public ?string $tenantSlug = null;
 
     public function getLayout(): string
     {
@@ -26,7 +26,7 @@ class EditProfile extends BaseEditProfile
 
         return [
             'usahas' => $usahas,
-            'tenant' => $usahas->firstWhere('id', $this->tenantId) ?? $usahas->first(),
+            'tenant' => $usahas->firstWhere('slug', $this->tenantSlug) ?? $usahas->first(),
         ];
     }
 

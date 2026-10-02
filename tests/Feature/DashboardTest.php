@@ -71,7 +71,7 @@ test('dashboard renders empty states and navigation without a cycle', function (
 test('tenant pages share mobile navigation with the correct active menu', function (string $path, ?string $activeLabel) {
     [, $usaha] = dashboardOwner();
 
-    $response = $this->get('/app/'.$usaha->id.$path);
+    $response = $this->get('/app/'.$usaha->slug.$path);
     $response->assertOk()->assertSee('Ganti usaha')->assertSee('Navigasi utama');
 
     $document = new DOMDocument;
@@ -123,7 +123,7 @@ test('dashboard requires authentication and rejects another owners usaha', funct
 });
 
 test('guests cannot open the dashboard', function () {
-    $this->get('/app/1')->assertRedirect(route('filament.app.auth.login'));
+    $this->get('/app/lele-pak-budi')->assertRedirect(route('filament.app.auth.login'));
 });
 
 test('dashboard keeps current profit calculations and persists reporting basis', function () {

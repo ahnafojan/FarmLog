@@ -39,7 +39,7 @@
         @if ($showUserMenu)
             @livewire(\Filament\Livewire\SimpleUserMenu::class)
         @else
-            <a class="flex size-11 items-center justify-center rounded-lg text-primary-600 dark:text-primary-400" href="{{ filament()->getProfileUrl(['tenant' => $tenant?->getKey()]) }}" aria-label="Profil akun">
+            <a class="flex size-11 items-center justify-center rounded-lg text-primary-600 dark:text-primary-400" href="{{ filament()->getProfileUrl(['tenant' => $tenant?->slug]) }}" aria-label="Profil akun">
                 <x-filament::icon icon="heroicon-o-user" class="size-5 shrink-0" />
             </a>
         @endif

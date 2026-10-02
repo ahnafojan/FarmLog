@@ -42,7 +42,7 @@ class AppPanelProvider extends PanelProvider
             ->registration()
             ->passwordReset()
             ->profile(EditProfile::class)
-            ->tenant(Usaha::class, ownershipRelationship: 'usaha')
+            ->tenant(Usaha::class, slugAttribute: 'slug', ownershipRelationship: 'usaha')
             ->tenantRegistration(RegisterUsaha::class)
             ->tenantProfile(EditUsaha::class)
             ->renderHook(PanelsRenderHook::CONTENT_START, function (): View|string {

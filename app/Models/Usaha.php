@@ -7,12 +7,27 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Usaha extends Model implements HasName
 {
     use SoftDeletes;
 
     protected $fillable = ['nama', 'rekap_dasar', 'catatan'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Usaha $usaha): void {
+            $baseSlug = Str::slug($usaha->nama) ?: 'usaha';
+            $slug = $baseSlug;
+
+            for ($suffix = 2; in_array($slug, ['login', 'logout', 'new', 'password-reset', 'profile', 'register'], true) || static::withTrashed()->where('slug', $slug)->exists(); $suffix++) {
+                $slug = $baseSlug.'-'.$suffix;
+            }
+
+            $usaha->slug = $slug;
+        });
+    }
 
     public function getFilamentName(): string
     {

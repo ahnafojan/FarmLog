@@ -46,6 +46,11 @@ class TransaksiResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with('usaha');
+    }
+
     public static function category(Get $get): ?Kategori
     {
         return Filament::getTenant()->kategoris()->whereKey($get('kategoris_id'))

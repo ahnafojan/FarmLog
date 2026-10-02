@@ -21,6 +21,7 @@ use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
 
 class KategoriResource extends Resource
@@ -38,6 +39,11 @@ class KategoriResource extends Resource
     protected static ?string $tenantRelationshipName = 'kategoris';
 
     protected static ?int $navigationSort = 3;
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with('usaha');
+    }
 
     public static function classificationLocked(?Kategori $record): bool
     {

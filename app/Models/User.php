@@ -35,7 +35,9 @@ class User extends Authenticatable implements FilamentUser, HasTenants
 
     public function getTenants(Panel $panel): Collection
     {
-        return $this->usahas()->orderBy('nama')->get();
+        return once(
+            fn (): Collection => $this->usahas()->orderBy('nama')->get(),
+        );
     }
 
     public function canAccessTenant(Model $tenant): bool

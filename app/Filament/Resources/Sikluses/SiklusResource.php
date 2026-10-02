@@ -14,6 +14,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -40,20 +41,33 @@ class SiklusResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
-            TextInput::make('nama')->label('Nama siklus')
-                ->placeholder('Contoh: Panen Telor Ayam bulan maret - Desember 2026')
-                ->required()
-                ->maxLength(150),
-            DatePicker::make('tanggal_mulai')->label('Tanggal mulai')->native(false)->displayFormat('d/m/Y')->placeholder('Pilih tanggal mulai')->required()->default(today())
-                ->disabledOn('edit'),
-            TextInput::make('populasi_awal')->label('Jumlah awal (ekor)')->placeholder('Contoh: 1000')->integer()->minValue(1)->maxValue(100000000)->required()
-                ->disabledOn('edit'),
-            TextInput::make('umur_masuk_hari')->label('Umur saat masuk (hari)')->placeholder('Contoh: 0 untuk bibit baru menetas')->integer()->minValue(0)->maxValue(36500)->default(0)->required()
-                ->disabledOn('edit'),
-            TextInput::make('harga_bibit')->label('Harga bibit per ekor')->placeholder('Contoh: 2000')->prefix('Rp')->integer()->minValue(0)->maxValue(1000000000)
-                ->required()->visibleOn('create'),
-            Textarea::make('catatan')->label('Catatan')->placeholder('Contoh: Bibit dari pemasok langganan')->maxLength(5000)->columnSpanFull(),
+        return $schema->columns(1)->components([
+            Section::make('Informasi siklus')
+                ->schema([
+                    TextInput::make('nama')->label('Nama siklus')
+                        ->placeholder('Contoh: Ayam petelur Maret 2026')
+                        ->required()
+                        ->maxLength(150),
+                    Textarea::make('catatan')->label('Catatan')
+                        ->placeholder('Contoh: Bibit dari pemasok langganan')
+                        ->maxLength(5000)
+                        ->rows(3),
+                ]),
+            Section::make('Data awal budidaya')
+                ->description(fn (string $operation): ?string => $operation === 'edit'
+                    ? 'Data awal ditetapkan saat siklus dibuat dan tidak dapat diubah.'
+                    : null)
+                ->columns(['sm' => 2])
+                ->schema([
+                    DatePicker::make('tanggal_mulai')->label('Tanggal mulai')->native(false)->displayFormat('d/m/Y')->placeholder('Pilih tanggal mulai')->required()->default(today())
+                        ->disabledOn('edit'),
+                    TextInput::make('populasi_awal')->label('Jumlah awal (ekor)')->placeholder('Contoh: 1000')->integer()->minValue(1)->maxValue(100000000)->required()
+                        ->disabledOn('edit'),
+                    TextInput::make('umur_masuk_hari')->label('Umur saat masuk (hari)')->placeholder('Contoh: 0 untuk bibit baru menetas')->integer()->minValue(0)->maxValue(36500)->default(0)->required()
+                        ->disabledOn('edit'),
+                    TextInput::make('harga_bibit')->label('Harga bibit per ekor')->placeholder('Contoh: 2000')->prefix('Rp')->integer()->minValue(0)->maxValue(1000000000)
+                        ->required()->visibleOn('create'),
+                ]),
         ]);
     }
 

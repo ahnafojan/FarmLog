@@ -1,11 +1,13 @@
 <?php
 
+use App\Filament\Pages\Auth\EditProfile;
 use App\Models\Usaha;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Routing\Route;
+use Livewire\Livewire;
 
 beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('app'));
@@ -68,6 +70,8 @@ test('profile keeps its navigation within the users businesses', function (?stri
     $cycleLink = $xpath->query('//nav[@aria-label="Navigasi utama"]/a')->item(1);
 
     expect($navigation->length)->toBe(1);
+    expect($xpath->query('//button[contains(concat(" ", normalize-space(@class), " "), " farm-catat ")]')->length)
+        ->toBe($hasBusinesses ? 1 : 0);
     expect($activeLinks->length)->toBe(1);
     expect(trim($activeLinks->item(0)->textContent))->toBe('Akun');
     expect(parse_url($cycleLink->getAttribute('href'), PHP_URL_PATH))->toBe($expectedPath);
@@ -81,4 +85,16 @@ test('profile keeps its navigation within the users businesses', function (?stri
 
 test('guests are redirected to login from the profile', function () {
     $this->get(Filament::getProfileUrl())->assertRedirect(Filament::getLoginUrl());
+});
+
+test('profile cannot open the transaction modal without a business', function () {
+    $user = Mockery::mock(User::class)->makePartial();
+    $user->forceFill(['id' => 7, 'name' => 'Budi', 'email' => 'budi@example.com']);
+    $user->shouldReceive('getTenants')->andReturn(collect());
+    $this->actingAs($user);
+
+    Livewire::test(EditProfile::class)
+        ->assertActionHidden('catat')
+        ->mountAction('catat')
+        ->assertActionNotMounted('catat');
 });

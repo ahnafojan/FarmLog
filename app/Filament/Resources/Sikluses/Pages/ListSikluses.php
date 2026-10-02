@@ -21,11 +21,6 @@ class ListSikluses extends ListRecords
     #[Locked]
     public string $cycleStatus = 'berjalan';
 
-    protected function getHeaderActions(): array
-    {
-        return [];
-    }
-
     public function selectStatus(string $status): void
     {
         abort_unless(in_array($status, ['berjalan', 'selesai'], true), 422);

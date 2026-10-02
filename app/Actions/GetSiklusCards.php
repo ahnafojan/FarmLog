@@ -11,6 +11,8 @@ use Illuminate\Validation\Rule;
 
 class GetSiklusCards
 {
+    public function __construct(private GetHarvestSummary $getHarvestSummary) {}
+
     public function handle(Usaha $usaha, string $status): array
     {
         Gate::authorize('view', $usaha);
@@ -81,16 +83,6 @@ class GetSiklusCards
             $income = (int) $siklus->pemasukan;
             $operational = (int) $siklus->operasional;
 
-            $duration = $harvest
-                ? (int) $siklus->tanggal_mulai->diffInDays($harvest->tanggal, false)
-                : 0;
-
-            $elapsed = (int) $siklus->tanggal_mulai->diffInDays($today, false);
-
-            $harvestDays = $harvest
-                ? (int) $today->diffInDays($harvest->tanggal, false)
-                : null;
-
             return [
                 'id' => $siklus->id,
                 'nama' => $siklus->nama,
@@ -108,14 +100,7 @@ class GetSiklusCards
                 'sisa_hari' => $milestone
                     ? (int) $today->diffInDays($milestone->tanggal, false)
                     : null,
-                'panen' => $harvest ? [
-                    'nama' => $harvest->nama,
-                    'tanggal' => $harvest->tanggal->translatedFormat('d M Y'),
-                    'sisa_hari' => $harvestDays,
-                    'progres' => $duration > 0
-                        ? (int) max(0, min(100, round($elapsed / $duration * 100)))
-                        : ($harvestDays <= 0 ? 100 : 0),
-                ] : null,
+                'panen' => $this->getHarvestSummary->handle($siklus, $harvest, $today),
                 'laba_bersih' => $income - $operational,
                 'summary' => [
                     'pemasukan' => $income,

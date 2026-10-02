@@ -97,7 +97,7 @@
         </div>
     </section>
 
-    <x-filament::button class="farm-catat" icon="heroicon-o-plus" wire:click="mountAction('catat')" wire:loading.attr="disabled" wire:target="mountAction">Catat</x-filament::button>
+    @include('filament.hooks.catat-button')
 
     <x-filament-actions::modals />
 </div>

@@ -6,6 +6,9 @@ use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\Tenancy\EditUsaha;
 use App\Filament\Pages\Tenancy\RegisterUsaha;
+use App\Filament\Resources\Kategoris\Pages\ManageKategoris;
+use App\Filament\Resources\Sikluses\Pages\ListSikluses;
+use App\Filament\Resources\Transaksis\Pages\ManageTransaksis;
 use App\Models\Usaha;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -34,6 +37,7 @@ class AppPanelProvider extends PanelProvider
             ->default()
             ->id('app')
             ->path('app')
+            ->spa()
             ->viteTheme('resources/css/filament.css')
             ->brandLogo(fn (): View => view('brand-logo', ['logoPath' => 'logos-black.png']))
             ->darkModeBrandLogo(fn (): View => view('brand-logo', ['logoPath' => 'logos-white.png']))
@@ -63,6 +67,11 @@ class AppPanelProvider extends PanelProvider
                     ? view('filament.hooks.bottom-navigation')
                     : '')
             ->databaseTransactions()
+            ->renderHook(
+                PanelsRenderHook::PAGE_END,
+                fn (): View => view('filament.hooks.catat-button'),
+                scopes: [ListSikluses::class, ManageTransaksis::class, ManageKategoris::class],
+            )
             ->bootUsing(function (): void {
                 app()->setLocale('id');
 

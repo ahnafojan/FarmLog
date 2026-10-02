@@ -4,7 +4,10 @@ use App\Actions\CreateSiklus;
 use App\Actions\CreateUsaha;
 use App\Actions\GetDashboardSummary;
 use App\Actions\SaveTransaksi;
+use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Resources\Kategoris\Pages\ManageKategoris;
+use App\Filament\Resources\Sikluses\Pages\ListSikluses;
 use App\Filament\Resources\Transaksis\Pages\ManageTransaksis;
 use App\Filament\Widgets\RevenueProfitChart;
 use App\Models\Siklus;
@@ -101,19 +104,84 @@ test('tenant registration does not render mobile tenant navigation', function ()
     $this->get('/app/new')->assertOk()->assertDontSee('Navigasi utama')->assertDontSee('Ganti usaha');
 });
 
-test('dashboard and transaction list use the same transaction modal', function (string $page, string $action) {
+test('main pages render one floating button and the same transaction modal', function (string $page) {
     dashboardOwner();
 
-    Livewire::test($page)
-        ->mountAction($action)
+    $component = Livewire::test($page);
+    $document = new DOMDocument;
+    @$document->loadHTML($component->html());
+    $buttons = (new DOMXPath($document))->query('//button[contains(concat(" ", normalize-space(@class), " "), " farm-catat ")]');
+
+    expect($buttons->length)->toBe(1);
+    expect(trim($buttons->item(0)->textContent))->toBe('Catat');
+
+    $component
+        ->mountAction('catat')
+        ->assertActionMounted('catat')
+        ->call('forceRender')
         ->assertSee('Catat transaksi')
         ->assertSee('Simpan')
         ->assertSee('Kategori')
         ->assertSee('Total');
 })->with([
-    'dashboard' => [Dashboard::class, 'catat'],
-    'transactions' => [ManageTransaksis::class, 'create'],
+    'dashboard' => Dashboard::class,
+    'cycles' => ListSikluses::class,
+    'transactions' => ManageTransaksis::class,
+    'categories' => ManageKategoris::class,
+    'profile' => EditProfile::class,
 ]);
+
+test('resource pages can save transactions from the floating action', function (string $page) {
+    [$user, $usaha] = dashboardOwner();
+    $cycle = dashboardCycle($user, $usaha);
+    $category = $usaha->kategoris()->where('nama', 'Listrik/air')->sole();
+
+    Livewire::test($page)
+        ->callAction('catat', data: [
+            'arah' => 'pengeluaran', 'tanggal' => '2026-09-30',
+            'kategoris_id' => $category->id, 'sikluses_id' => $cycle->id, 'total' => 150000,
+        ])
+        ->assertHasNoActionErrors()
+        ->assertNotified('Transaksi berhasil dicatat');
+
+    $this->assertDatabaseHas('transaksis', [
+        'usahas_id' => $usaha->id, 'kategoris_id' => $category->id,
+        'sikluses_id' => $cycle->id, 'total' => 150000,
+    ]);
+})->with([
+    'cycles' => ListSikluses::class,
+    'transactions' => ManageTransaksis::class,
+    'categories' => ManageKategoris::class,
+]);
+
+test('profile transaction uses the selected owned business on subsequent requests', function () {
+    [$user, $usaha] = dashboardOwner();
+    Filament::setTenant(null);
+    $secondUsaha = app(CreateUsaha::class)->handle($user, [
+        'nama' => 'Usaha Kedua', 'template_usahas_id' => $usaha->template_usahas_id,
+    ]);
+    $category = $secondUsaha->kategoris()->where('nama', 'Listrik/air')->sole();
+    Filament::setTenant(null);
+
+    $component = Livewire::withQueryParams(['tenant' => $secondUsaha->slug])
+        ->test(EditProfile::class)
+        ->mountAction('catat')
+        ->assertActionMounted('catat');
+
+    Filament::setTenant(null);
+
+    $component
+        ->fillForm([
+            'arah' => 'pengeluaran', 'tanggal' => '2026-09-30',
+            'kategoris_id' => $category->id, 'sikluses_id' => null, 'total' => 150000,
+        ])
+        ->callMountedAction()
+        ->assertHasNoActionErrors()
+        ->assertNotified('Transaksi berhasil dicatat');
+
+    $this->assertDatabaseHas('transaksis', ['usahas_id' => $secondUsaha->id, 'total' => 150000]);
+    $this->assertDatabaseMissing('transaksis', ['usahas_id' => $usaha->id, 'total' => 150000]);
+});
 
 test('dashboard requires authentication and rejects another owners usaha', function () {
     [, $usaha] = dashboardOwner();

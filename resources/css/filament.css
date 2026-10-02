@@ -47,7 +47,12 @@
     &::-moz-progress-bar { @apply rounded-full bg-primary-500; }
 }
 
-/* The floating action and mobile shell are the only custom panel layout. */
+@media (width < 640px) {
+    .fi-simple-main-ctn { @apply px-4; }
+    .fi-simple-main { @apply my-8 rounded-xl py-8; }
+}
+
+/* Floating action and mobile navigation. */
 .farm-catat {
     @apply fixed right-5 bottom-6 z-20 min-h-11 shadow-lg;
 }
@@ -61,6 +66,7 @@
 
 .farm-profile-shell {
     @apply min-h-dvh;
+    & .farm-catat { bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); }
     & .farm-bottom-nav {
         @apply grid;
         padding-inline: max(0.75rem, calc((100% - 48rem) / 2));
@@ -82,6 +88,19 @@
     }
 }
 
+.farm-cycle-edit {
+    & .fi-header-subheading { @apply text-sm wrap-anywhere; }
+    & .fi-section { @apply min-w-0; }
+
+    @media (width < 640px) {
+        & .fi-section-header, & .fi-section-content { @apply p-4; }
+        & .fi-input, & .fi-fo-textarea { @apply min-h-11 text-base; }
+        & .fi-btn { @apply min-h-11; }
+        & .fi-sc-actions .fi-ac { @apply grid grid-cols-1; }
+        & .fi-header-actions-ctn .fi-btn { @apply w-full; }
+    }
+}
+
 @media (width < 1024px) {
     body:has(.farm-mobile-header) {
         & .fi-topbar-ctn, & .fi-sidebar, & .fi-sidebar-close-overlay { display: none; }
@@ -96,7 +115,6 @@
     }
     .farm-catat { bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); }
 }
-
 :is(.farm-content, .farm-mobile-header, .farm-bottom-nav) :is(a, button):focus-visible {
     @apply outline-2 outline-offset-2 outline-primary-500;
 }

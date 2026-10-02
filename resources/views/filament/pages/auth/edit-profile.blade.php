@@ -15,5 +15,6 @@
     </main>
 
     <x-farmlog.bottom-navigation :tenant="$tenant" />
+    @include('filament.hooks.catat-button')
     <x-filament-actions::modals />
 </div>

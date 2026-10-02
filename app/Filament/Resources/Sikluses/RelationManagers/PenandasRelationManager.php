@@ -17,18 +17,18 @@ class PenandasRelationManager extends RelationManager
 
     public function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             DatePicker::make('tanggal')->label('Tanggal')->native(false)->displayFormat('d/m/Y')->placeholder('Pilih tanggal penanda')->required(),
         ]);
     }
 
     public function table(Table $table): Table
     {
-        return $table->recordTitleAttribute('nama')->defaultSort('tanggal')->columns([
-            TextColumn::make('nama')->label('Penanda'),
+        return $table->recordTitleAttribute('nama')->defaultSort('tanggal')->stackedOnMobile()->columns([
+            TextColumn::make('nama')->label('Penanda')->wrap(),
             TextColumn::make('tanggal')->label('Tanggal')->date('d/m/Y'),
         ])->recordActions([
-            EditAction::make()->label('Ubah tanggal'),
+            EditAction::make()->label('Ubah tanggal')->button()->outlined(),
         ]);
     }
 }

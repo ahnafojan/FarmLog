@@ -4,16 +4,15 @@ namespace App\Filament\Resources\Transaksis\Pages;
 
 use App\Filament\Actions\CatatTransaksiAction;
 use App\Filament\Resources\Transaksis\TransaksiResource;
+use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
 
 class ManageTransaksis extends ManageRecords
 {
     protected static string $resource = TransaksiResource::class;
 
-    protected function getHeaderActions(): array
+    public function catatAction(): CreateAction
     {
-        return [
-            CatatTransaksiAction::make(),
-        ];
+        return CatatTransaksiAction::make('catat');
     }
 }

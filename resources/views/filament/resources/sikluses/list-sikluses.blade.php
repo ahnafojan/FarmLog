@@ -120,11 +120,7 @@
                 </x-filament::button>
             </div>
         @endif
-
-        <x-filament::button class="farm-catat" icon="heroicon-o-plus"
-            wire:click="mountAction('catat')"
-            wire:loading.attr="disabled"
-            wire:target="mountAction"
-        >Catat</x-filament::button>
     </div>
+
+    <x-filament-actions::modals />
 </x-filament-panels::page>

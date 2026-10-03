@@ -11,7 +11,10 @@ use Illuminate\Validation\Rule;
 
 class GetDashboardSummary
 {
-    public function __construct(private GetHarvestSummary $getHarvestSummary) {}
+    public function __construct(
+        private GetHarvestSummary $getHarvestSummary,
+        private GetFinancialSummary $getFinancialSummary,
+    ) {}
 
     /**
      * @return array{summary: array<string, int>, chart: array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}, running: array<string, int>|null, cycle: array<string, mixed>|null, transactions: array<int, array<string, mixed>>}
@@ -59,7 +62,7 @@ class GetDashboardSummary
             $harvest = $cycle->penandas()->whereNull('selesai_at')->whereIn('jenis', ['panen', 'afkir'])
                 ->orderBy('tanggal')->orderBy('id')->first();
             $currentAge = max(0, $cycle->umur_masuk_hari + (int) $cycle->tanggal_mulai->diffInDays($today, false));
-            $cycleSummary = $this->summarize((clone $transactions)->where('sikluses_id', $cycle->id));
+            $cycleSummary = $this->getFinancialSummary->handle((clone $transactions)->where('sikluses_id', $cycle->id));
 
             $cycleData = [
                 'id' => $cycle->id,
@@ -76,10 +79,10 @@ class GetDashboardSummary
         }
 
         return [
-            'summary' => $this->summarize(clone $periodTransactions),
+            'summary' => $this->getFinancialSummary->handle($periodTransactions),
             'chart' => $this->chart(clone $periodTransactions, $start, $end, $isMonthly ? 'day' : 'month', $basis),
             'running' => $basis === 'siklus_selesai'
-                ? $this->summarize((clone $transactions)->whereHas('siklus', fn (Builder $query) => $query->where('status', 'berjalan')))
+                ? $this->getFinancialSummary->handle((clone $transactions)->whereHas('siklus', fn (Builder $query) => $query->where('status', 'berjalan')))
                 : null,
             'cycle' => $cycleData,
             'transactions' => (clone $periodTransactions)->with(['kategori:id,nama', 'siklus:id,nama'])
@@ -97,25 +100,6 @@ class GetDashboardSummary
 
     /**
      * @param  Builder<Transaksi>  $query
-     * @return array{pemasukan: int, operasional: int, investasi: int, laba_bersih: int}
-     */
-    private function summarize(Builder $query): array
-    {
-        $totals = $this->financialTotals($query)->toBase()->first();
-
-        $income = (int) $totals->pemasukan;
-        $operational = (int) $totals->operasional;
-
-        return [
-            'pemasukan' => $income,
-            'operasional' => $operational,
-            'investasi' => (int) $totals->investasi,
-            'laba_bersih' => $income - $operational,
-        ];
-    }
-
-    /**
-     * @param  Builder<Transaksi>  $query
      * @return array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}
      */
     private function chart(Builder $query, CarbonImmutable $start, CarbonImmutable $end, string $interval, string $basis): array
@@ -128,7 +112,7 @@ class GetDashboardSummary
         }
 
         $bucket = "DATE_TRUNC('{$interval}', {$dateColumn})::date";
-        $totals = $this->financialTotals($query)
+        $totals = $this->getFinancialSummary->totalsQuery($query)
             ->selectRaw("{$bucket} AS period_date")
             ->groupByRaw($bucket)
             ->toBase()->get()->keyBy('period_date');
@@ -136,26 +120,17 @@ class GetDashboardSummary
 
         for ($date = $start; $date <= $end; $date = $date->add($interval, 1)) {
             $total = $totals->get($date->toDateString());
-            $income = (int) ($total?->pemasukan ?? 0);
-            $operational = (int) ($total?->operasional ?? 0);
+            $summary = $this->getFinancialSummary->fromTotals(
+                (int) ($total?->pemasukan ?? 0),
+                (int) ($total?->operasional ?? 0),
+                (int) ($total?->investasi ?? 0),
+            );
 
             $chart['labels'][] = $date->translatedFormat($interval === 'day' ? 'd M' : 'M Y');
-            $chart['pemasukan'][] = $income;
-            $chart['laba_bersih'][] = $income - $operational;
+            $chart['pemasukan'][] = $summary['pemasukan'];
+            $chart['laba_bersih'][] = $summary['laba_bersih'];
         }
 
         return $chart;
-    }
-
-    /**
-     * @param  Builder<Transaksi>  $query
-     * @return Builder<Transaksi>
-     */
-    private function financialTotals(Builder $query): Builder
-    {
-        return $query->join('kategoris', 'kategoris.id', '=', 'transaksis.kategoris_id')
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksis.arah = 'pemasukan' THEN transaksis.total ELSE 0 END), 0) AS pemasukan")
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksis.arah = 'pengeluaran' AND kategoris.klasifikasi = 'operasional' THEN transaksis.total ELSE 0 END), 0) AS operasional")
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksis.arah = 'pengeluaran' AND kategoris.klasifikasi = 'investasi' THEN transaksis.total ELSE 0 END), 0) AS investasi");
     }
 }

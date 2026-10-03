@@ -2,6 +2,7 @@
 
 @php
     use App\Filament\Pages\Dashboard;
+    use App\Filament\Pages\Laporan;
     use App\Filament\Resources\Sikluses\SiklusResource;
     use App\Filament\Resources\Transaksis\TransaksiResource;
 @endphp
@@ -18,7 +19,10 @@
         href="{{ $tenant ? TransaksiResource::getUrl(tenant: $tenant) : filament()->getTenantRegistrationUrl() }}"
         @if (request()->routeIs('filament.app.resources.transaksis.*')) aria-current="page" @endif><x-filament::icon icon="heroicon-o-document-text"
             class="size-5 shrink-0" /><span>Transaksi</span></a>
-    <a wire:navigate href="{{ filament()->getProfileUrl(['tenant' => $tenant?->slug]) }}"
-        @if (request()->routeIs('filament.app.auth.profile')) aria-current="page" @endif><x-filament::icon icon="heroicon-o-user-circle"
-            class="size-5 shrink-0" /><span>Akun</span></a>
+    <a wire:navigate href="{{ $tenant ? Laporan::getUrl(tenant: $tenant) : filament()->getTenantRegistrationUrl() }}"
+        @if (request()->routeIs('filament.app.pages.laporan')) aria-current="page" @endif>
+        <x-filament::icon icon="heroicon-o-document-chart-bar" class="size-5 shrink-0" />
+
+        <span>Laporan</span>
+    </a>
 </nav>

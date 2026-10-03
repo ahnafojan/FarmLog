@@ -72,8 +72,7 @@ test('profile keeps its navigation within the users businesses', function (?stri
     expect($navigation->length)->toBe(1);
     expect($xpath->query('//button[contains(concat(" ", normalize-space(@class), " "), " farm-catat ")]')->length)
         ->toBe($hasBusinesses ? 1 : 0);
-    expect($activeLinks->length)->toBe(1);
-    expect(trim($activeLinks->item(0)->textContent))->toBe('Akun');
+    expect($activeLinks->length)->toBe(0);
     expect(parse_url($cycleLink->getAttribute('href'), PHP_URL_PATH))->toBe($expectedPath);
     expect($xpath->query('//header//button[@aria-label="Ganti tema"]')->length)->toBe(1);
 })->with([

@@ -11,7 +11,10 @@ use Illuminate\Validation\Rule;
 
 class GetSiklusCards
 {
-    public function __construct(private GetHarvestSummary $getHarvestSummary) {}
+    public function __construct(
+        private GetHarvestSummary $getHarvestSummary,
+        private GetFinancialSummary $getFinancialSummary,
+    ) {}
 
     public function handle(Usaha $usaha, string $status): array
     {
@@ -80,8 +83,11 @@ class GetSiklusCards
                     fn ($item) => in_array($item->jenis, ['panen', 'afkir'], true),
                 );
 
-            $income = (int) $siklus->pemasukan;
-            $operational = (int) $siklus->operasional;
+            $summary = $this->getFinancialSummary->fromTotals(
+                (int) $siklus->pemasukan,
+                (int) $siklus->operasional,
+                (int) $siklus->investasi,
+            );
 
             return [
                 'id' => $siklus->id,
@@ -101,13 +107,8 @@ class GetSiklusCards
                     ? (int) $today->diffInDays($milestone->tanggal, false)
                     : null,
                 'panen' => $this->getHarvestSummary->handle($siklus, $harvest, $today),
-                'laba_bersih' => $income - $operational,
-                'summary' => [
-                    'pemasukan' => $income,
-                    'operasional' => $operational,
-                    'investasi' => (int) $siklus->investasi,
-                    'laba_bersih' => $income - $operational,
-                ],
+                'laba_bersih' => $summary['laba_bersih'],
+                'summary' => $summary,
             ];
         });
 

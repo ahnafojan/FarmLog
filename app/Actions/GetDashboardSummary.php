@@ -6,14 +6,16 @@ use App\Models\Transaksi;
 use App\Models\Usaha;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class GetDashboardSummary
 {
     public function __construct(
-        private GetHarvestSummary $getHarvestSummary,
+        private GetSiklusCards $getSiklusCards,
         private GetFinancialSummary $getFinancialSummary,
+        private CacheDashboardSummary $cacheDashboardSummary,
     ) {}
 
     /**
@@ -21,6 +23,8 @@ class GetDashboardSummary
      */
     public function handle(Usaha $usaha, string $period, int $year, string $basis, ?int $month = null): array
     {
+        Gate::authorize('view', $usaha);
+
         Validator::make(compact('period', 'year', 'basis', 'month'), [
             'period' => [Rule::in(['bulan_ini', 'pilih_bulan', 'tahun_ini', 'pilih_tahun'])],
             'year' => ['integer', 'between:1900,9999'],
@@ -37,6 +41,34 @@ class GetDashboardSummary
             'pilih_tahun' => CarbonImmutable::create($year, 1, 1)->startOfDay(),
         };
         $end = $isMonthly ? $start->endOfMonth() : $start->endOfYear();
+
+        $resolve = fn (): array => $this->calculate($usaha, $basis, $start, $end, $isMonthly);
+
+        if ($usaha->getConnection()->transactionLevel() > 0) {
+            return $resolve();
+        }
+
+        $filterKey = hash('sha256', implode('|', [
+            $start->toDateString(),
+            $end->toDateString(),
+            $basis,
+            $today->toDateString(),
+            config('app.timezone'),
+            app()->getLocale(),
+        ]));
+
+        return $this->cacheDashboardSummary->handle(
+            (int) $usaha->getKey(),
+            $filterKey,
+            $resolve,
+        );
+    }
+
+    /**
+     * @return array{summary: array<string, int>, chart: array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}, running: array<string, int>|null, cycle: array<string, mixed>|null, transactions: array<int, array<string, mixed>>}
+     */
+    private function calculate(Usaha $usaha, string $basis, CarbonImmutable $start, CarbonImmutable $end, bool $isMonthly): array
+    {
         $dates = [$start->toDateString(), $end->toDateString()];
 
         $transactions = Transaksi::query()->where('transaksis.usahas_id', $usaha->id)
@@ -51,32 +83,7 @@ class GetDashboardSummary
                     ->orWhere(fn (Builder $general) => $general->whereNull('sikluses_id')->whereBetween('transaksis.tanggal', $dates));
             });
         }
-
-        $cycle = $usaha->sikluses()->where('status', 'berjalan')
-            ->orderByDesc('tanggal_mulai')->orderByDesc('id')->first();
-        $cycleData = null;
-
-        if ($cycle !== null) {
-            $milestone = $cycle->penandas()->whereNull('selesai_at')->whereDate('tanggal', '>=', $today)
-                ->orderBy('tanggal')->orderBy('id')->first();
-            $harvest = $cycle->penandas()->whereNull('selesai_at')->whereIn('jenis', ['panen', 'afkir'])
-                ->orderBy('tanggal')->orderBy('id')->first();
-            $currentAge = max(0, $cycle->umur_masuk_hari + (int) $cycle->tanggal_mulai->diffInDays($today, false));
-            $cycleSummary = $this->getFinancialSummary->handle((clone $transactions)->where('sikluses_id', $cycle->id));
-
-            $cycleData = [
-                'id' => $cycle->id,
-                'nama' => $cycle->nama,
-                'jumlah' => $cycle->populasi_awal,
-                'umur' => $currentAge,
-                'mulai' => $cycle->tanggal_mulai->format('d/m/Y'),
-                'penanda' => $milestone?->nama,
-                'tanggal_penanda' => $milestone?->tanggal->format('d/m/Y'),
-                'sisa_hari' => $milestone ? (int) $today->diffInDays($milestone->tanggal) : null,
-                'laba_bersih' => $cycleSummary['laba_bersih'],
-                'panen' => $this->getHarvestSummary->handle($cycle, $harvest, $today),
-            ];
-        }
+        $cycleData = $this->getSiklusCards->latestRunning($usaha);
 
         return [
             'summary' => $this->getFinancialSummary->handle($periodTransactions),
@@ -89,7 +96,7 @@ class GetDashboardSummary
                 ->orderByDesc('tanggal')->orderByDesc('id')->limit(5)->get()
                 ->map(fn (Transaksi $transaction): array => [
                     'id' => $transaction->id,
-                    'tanggal' => $transaction->tanggal->format('d/m/Y'),
+                    'tanggal' => $transaction->tanggal->locale('id')->translatedFormat('d M Y'),
                     'kategori' => $transaction->kategori->nama,
                     'siklus' => $transaction->siklus?->nama ?? 'Biaya umum usaha',
                     'arah' => $transaction->arah,

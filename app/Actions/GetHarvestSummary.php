@@ -23,7 +23,7 @@ class GetHarvestSummary
 
         return [
             'nama' => $harvest->nama,
-            'tanggal' => $harvest->tanggal->translatedFormat('d M Y'),
+            'tanggal' => $harvest->tanggal->locale('id')->translatedFormat('d M Y'),
             'sisa_hari' => $remainingDays,
             'progres' => $remainingDays <= 0
                 ? 100

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Sikluses\RelationManagers;
 
+use App\Models\SiklusPenanda;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -26,7 +27,8 @@ class PenandasRelationManager extends RelationManager
     {
         return $table->recordTitleAttribute('nama')->defaultSort('tanggal')->stackedOnMobile()->columns([
             TextColumn::make('nama')->label('Penanda')->wrap(),
-            TextColumn::make('tanggal')->label('Tanggal')->date('d/m/Y'),
+            TextColumn::make('tanggal')->label('Tanggal')
+                ->formatStateUsing(fn (SiklusPenanda $record): string => $record->tanggal->locale('id')->translatedFormat('d M Y')),
         ])->recordActions([
             EditAction::make()->label('Ubah tanggal')->button()->outlined(),
         ]);

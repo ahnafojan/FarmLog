@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Models\Siklus;
 use App\Models\Usaha;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -31,10 +32,28 @@ class GetSiklusCards
             ->groupBy('status')
             ->pluck('jumlah', 'status');
 
-        $cycles = $usaha->sikluses()
+        $cycles = $this->cardQuery($usaha)
             ->where('status', $status)
+            ->paginate(6, ['*'], 'cyclePage');
+
+        $cycles->through(
+            fn (Siklus $siklus): array => $this->toCard($siklus),
+        );
+
+        return [
+            'cycles' => $cycles,
+            'counts' => [
+                'berjalan' => (int) ($counts['berjalan'] ?? 0),
+                'selesai' => (int) ($counts['selesai'] ?? 0),
+            ],
+        ];
+    }
+
+    private function cardQuery(Usaha $usaha): HasMany
+    {
+        return $usaha->sikluses()
             ->with([
-                'penandas' => fn ($query) => $query
+                'penandas' => fn (HasMany $query) => $query
                     ->whereNull('selesai_at')
                     ->orderBy('tanggal')
                     ->orderBy('id'),
@@ -60,64 +79,69 @@ class GetSiklusCards
                     ),
             ], 'total')
             ->orderByDesc('tanggal_mulai')
-            ->orderByDesc('id')
-            ->paginate(6, ['*'], 'cyclePage');
+            ->orderByDesc('id');
+    }
 
-        $cycles->through(function (Siklus $siklus): array {
-            $today = today();
-            $finished = $siklus->status === 'selesai';
+    private function tocard(Siklus $siklus): array
+    {
+        $today = today();
+        $finished = $siklus->status === 'selesai';
 
-            $ageDate = $finished
-                ? ($siklus->tanggal_selesai ?? $today)
-                : $today;
+        $ageDate = $finished
+            ? ($siklus->tanggal_selesai ?? $today)
+            : $today;
 
-            $milestone = $finished
-                ? null
-                : $siklus->penandas->first(
-                    fn ($item) => $item->tanggal->gte($today),
-                );
-
-            $harvest = $finished
-                ? null
-                : $siklus->penandas->first(
-                    fn ($item) => in_array($item->jenis, ['panen', 'afkir'], true),
-                );
-
-            $summary = $this->getFinancialSummary->fromTotals(
-                (int) $siklus->pemasukan,
-                (int) $siklus->operasional,
-                (int) $siklus->investasi,
+        $milestone = $finished
+            ? null
+            : $siklus->penandas->first(
+                fn ($item) => $item->tanggal->gte($today),
             );
 
-            return [
-                'id' => $siklus->id,
-                'nama' => $siklus->nama,
-                'status' => $siklus->status,
-                'mulai' => $siklus->tanggal_mulai->format('d/m/Y'),
-                'selesai' => $siklus->tanggal_selesai?->format('d/m/Y'),
-                'jumlah' => $siklus->populasi_awal,
-                'umur' => max(
-                    0,
-                    $siklus->umur_masuk_hari
-                        + (int) $siklus->tanggal_mulai->diffInDays($ageDate, false),
-                ),
-                'penanda' => $milestone?->nama,
-                'tanggal_penanda' => $milestone?->tanggal->format('d/m/Y'),
-                'sisa_hari' => $milestone
-                    ? (int) $today->diffInDays($milestone->tanggal, false)
-                    : null,
-                'panen' => $this->getHarvestSummary->handle($siklus, $harvest, $today),
-                'laba_bersih' => $summary['laba_bersih'],
-                'summary' => $summary,
-            ];
-        });
+        $harvest = $finished
+            ? null
+            : $siklus->penandas->first(
+                fn ($item) => in_array($item->jenis, ['panen', 'afkir'], true),
+            );
+
+        $summary = $this->getFinancialSummary->fromTotals(
+            (int) $siklus->pemasukan,
+            (int) $siklus->operasional,
+            (int) $siklus->investasi,
+        );
 
         return [
-            'cycles' => $cycles,
-            'counts' => [
-                'berjalan' => (int) ($counts['berjalan'] ?? 0),
-                'selesai' => (int) ($counts['selesai'] ?? 0),
-            ],
+            'id' => $siklus->id,
+            'nama' => $siklus->nama,
+            'status' => $siklus->status,
+            'mulai' => $siklus->tanggal_mulai->locale('id')->translatedFormat('d M Y'),
+            'selesai' => $siklus->tanggal_selesai?->locale('id')->translatedFormat('d M Y'),
+            'jumlah' => $siklus->populasi_awal,
+            'umur' => max(
+                0,
+                $siklus->umur_masuk_hari
+                    + (int) $siklus->tanggal_mulai->diffInDays($ageDate, false),
+            ),
+            'penanda' => $milestone?->nama,
+            'tanggal_penanda' => $milestone?->tanggal->locale('id')->translatedFormat('d M Y'),
+            'sisa_hari' => $milestone
+                ? (int) $today->diffInDays($milestone->tanggal, false)
+                : null,
+            'panen' => $this->getHarvestSummary->handle($siklus, $harvest, $today),
+            'laba_bersih' => $summary['laba_bersih'],
+            'summary' => $summary,
         ];
+    }
+
+    public function latestRunning(Usaha $usaha): ?array
+    {
+        Gate::authorize('view', $usaha);
+
+        $siklus = $this->cardQuery($usaha)
+            ->where('status', 'berjalan')
+            ->first();
+
+        return $siklus !== null
+            ? $this->toCard($siklus)
+            : null;
     }
 }

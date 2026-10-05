@@ -23,6 +23,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\FontWeight;
 use Filament\Support\Icons\Heroicon;
+use Filament\Support\RawJs;
 use Filament\Tables\Columns\Layout\Panel;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\Layout\Stack;
@@ -114,10 +115,18 @@ class TransaksiResource extends Resource
                 ->live(onBlur: true)->afterStateUpdated(fn (Get $get, Set $set) => static::calculateTotal($get, $set)),
             TextInput::make('satuan')->label('Satuan')->placeholder('Contoh: kg atau ekor')->required()->maxLength(20)
                 ->visible(fn (Get $get): bool => static::usesQuantity($get)),
-            TextInput::make('harga_satuan')->label('Harga satuan')->placeholder('Contoh: 12000')->prefix('Rp')->integer()->minValue(0)->maxValue(1000000000000)
+            TextInput::make('harga_satuan')->label('Harga satuan')->placeholder('Contoh: 12.000')->prefix('Rp')->integer()->minValue(0)->maxValue(1000000000000)
+                ->mask(RawJs::make(<<<'JS'
+                    $money($input, ',', '.', 0)
+                    JS))
+                ->stripCharacters('.')
                 ->required()->visible(fn (Get $get): bool => static::usesQuantity($get))
                 ->live(onBlur: true)->afterStateUpdated(fn (Get $get, Set $set) => static::calculateTotal($get, $set)),
-            TextInput::make('total')->label('Total')->placeholder('Contoh: 300000')->prefix('Rp')->integer()->minValue(0)->maxValue(1000000000000000)->required(),
+            TextInput::make('total')->label('Total')->placeholder('Contoh: 3.000.000')->prefix('Rp')->integer()->minValue(0)->maxValue(1000000000000000)
+                ->mask(RawJs::make(<<<'JS'
+                    $money($input, ',', '.', 0)
+                    JS))
+                ->stripCharacters('.')->required(),
             TextInput::make('pembeli')->label('Pembeli')->placeholder('Contoh: Warung Bu Sari (opsional)')->maxLength(150)
                 ->visible(fn (Get $get): bool => $get('arah') === 'pemasukan'),
             Textarea::make('catatan')->label('Catatan')->placeholder('Tambahkan catatan transaksi (opsional)')->maxLength(5000)->columnSpanFull(),

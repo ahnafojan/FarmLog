@@ -17,6 +17,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Support\RawJs;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -65,7 +66,11 @@ class SiklusResource extends Resource
                         ->disabledOn('edit'),
                     TextInput::make('umur_masuk_hari')->label('Umur saat masuk (hari)')->placeholder('Contoh: 0 untuk bibit baru menetas')->integer()->minValue(0)->maxValue(36500)->default(0)->required()
                         ->disabledOn('edit'),
-                    TextInput::make('harga_bibit')->label('Harga bibit per ekor')->placeholder('Contoh: 2000')->prefix('Rp')->integer()->minValue(0)->maxValue(1000000000)
+                    TextInput::make('harga_bibit')->label('Harga bibit per ekor')->placeholder('Contoh: 2.000')->prefix('Rp')->integer()->minValue(0)->maxValue(1000000000)
+                        ->mask(RawJs::make(<<<'JS'
+                            $money($input, ',', '.', 0)
+                            JS))
+                        ->stripCharacters('.')
                         ->required()->visibleOn('create'),
                 ]),
         ]);

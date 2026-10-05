@@ -6,9 +6,7 @@ use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\Tenancy\EditUsaha;
 use App\Filament\Pages\Tenancy\RegisterUsaha;
-use App\Filament\Resources\Kategoris\Pages\ManageKategoris;
 use App\Filament\Resources\Sikluses\Pages\ListSikluses;
-use App\Filament\Resources\Transaksis\Pages\ManageTransaksis;
 use App\Models\Usaha;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -28,6 +26,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Illuminate\View\View;
+use App\Filament\Pages\Laporan;
 
 class AppPanelProvider extends PanelProvider
 {
@@ -70,7 +69,7 @@ class AppPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::PAGE_END,
                 fn (): View => view('filament.hooks.catat-button'),
-                scopes: [ListSikluses::class, ManageTransaksis::class, ManageKategoris::class],
+                scopes: [ListSikluses::class, Laporan::class],
             )
             ->bootUsing(function (): void {
                 app()->setLocale('id');

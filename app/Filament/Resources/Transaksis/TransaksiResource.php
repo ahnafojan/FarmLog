@@ -144,7 +144,7 @@ class TransaksiResource extends Resource
                         ->icon(Heroicon::OutlinedArrowsRightLeft)->color('gray')->wrap()->extraAttributes(['class' => 'wrap-anywhere']),
                 ])->space(1),
                 Stack::make([
-                    TextColumn::make('total')->label('Total')->money('IDR', locale: 'id')->sortable()
+                    TextColumn::make('total')->label('Total')->money('IDR', locale: 'id', decimalPlaces: 0)->sortable()
                         ->weight(FontWeight::Bold)->wrap(),
                     Split::make([
                         TextColumn::make('arah')->label('Jenis')->badge()->grow(false)

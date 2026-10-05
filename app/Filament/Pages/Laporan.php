@@ -17,6 +17,8 @@ use Filament\Support\Icons\Heroicon;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Filament\Actions\CatatTransaksiAction;
+use Filament\Actions\CreateAction;
 
 class Laporan extends Page
 {
@@ -53,6 +55,11 @@ class Laporan extends Page
             $this->exportPenjualanAction(),
             $this->exportPengeluaranAction(),
         ];
+    }
+
+    public function catatAction(): CreateAction
+    {
+    return CatatTransaksiAction::make('catat');
     }
 
     protected function filterAction(): Action

@@ -67,7 +67,7 @@
                         />
                     </div>
 
-                    <a
+                    <a wire:navigate
                         class="flex min-h-11 items-center justify-between gap-3 text-sm font-medium text-primary-600 dark:text-primary-400"
                         href="{{ SiklusResource::getUrl('edit', ['record' => $cycle['id']]) }}"
                     >
@@ -76,15 +76,20 @@
                     </a>
                 </x-farmlog.cycle-card>
             @empty
+                @php
+                    $emptyTitle = $cycleStatus === 'berjalan'
+                        ? 'Belum ada siklus berjalan'
+                        : 'Belum ada siklus selesai';
+                    $emptyDescription = $cycleStatus === 'berjalan'
+                        ? 'Buat siklus untuk mulai mencatat budidaya.'
+                        : 'Siklus yang sudah ditutup akan muncul di sini.';
+                @endphp
+
                 <x-farmlog.empty-state
                     class="col-span-full"
                     icon="heroicon-o-square-3-stack-3d"
-                    :title="$cycleStatus === 'berjalan'
-                        ? 'Belum ada siklus berjalan'
-                        : 'Belum ada siklus selesai'"
-                    :description="$cycleStatus === 'berjalan'
-                        ? 'Buat siklus untuk mulai mencatat budidaya.'
-                        : 'Siklus yang sudah ditutup akan muncul di sini.'"
+                    :title="$emptyTitle"
+                    :description="$emptyDescription"
                 >
                     <x-slot name="actions">
                         @if ($cycleStatus === 'berjalan' && SiklusResource::canCreate())

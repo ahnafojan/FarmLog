@@ -9,7 +9,7 @@
 <article {{ $attributes->class(['farm-card', 'space-y-4']) }}>
     <div class="flex items-start justify-between gap-3">
         <h3 class="min-w-0 flex-1 text-base font-semibold leading-6 wrap-anywhere">
-            <a href="{{ $url }}">{{ $cycle['nama'] }}</a>
+            <a wire:navigate href="{{ $url }}">{{ $cycle['nama'] }}</a>
         </h3>
 
         <x-filament::badge :color="$finished ? 'gray' : 'success'" class="shrink-0 self-start">
@@ -27,7 +27,8 @@
 
     <dl class="farm-stats">
         <div>
-            <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-primary-600 dark:bg-gray-800 dark:text-primary-400">
+            <span
+                class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-primary-600 dark:bg-gray-800 dark:text-primary-400">
                 <x-filament::icon icon="heroicon-o-inbox-stack" class="size-5 shrink-0" />
             </span>
             <div>
@@ -37,7 +38,8 @@
         </div>
 
         <div>
-            <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-primary-600 dark:bg-gray-800 dark:text-primary-400">
+            <span
+                class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-primary-600 dark:bg-gray-800 dark:text-primary-400">
                 <x-filament::icon icon="heroicon-o-clock" class="size-5 shrink-0" />
             </span>
             <div>

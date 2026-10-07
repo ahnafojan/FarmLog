@@ -3,11 +3,13 @@
 namespace App\Filament\Pages;
 
 use App\Actions\ExportLaporanPdf;
+use App\Filament\Actions\CatatTransaksiAction;
 use App\Models\Usaha;
 use App\Models\User;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
+use Filament\Actions\CreateAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -17,8 +19,6 @@ use Filament\Support\Icons\Heroicon;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use App\Filament\Actions\CatatTransaksiAction;
-use Filament\Actions\CreateAction;
 
 class Laporan extends Page
 {
@@ -59,7 +59,7 @@ class Laporan extends Page
 
     public function catatAction(): CreateAction
     {
-    return CatatTransaksiAction::make('catat');
+        return CatatTransaksiAction::make('catat');
     }
 
     protected function filterAction(): Action
@@ -136,8 +136,30 @@ class Laporan extends Page
             ->label('Export Pengeluaran')
             ->icon(Heroicon::OutlinedArrowDownTray)
             ->color('gray')
+            ->modalHeading('Export laporan pengeluaran')
+            ->modalDescription(
+                fn (): string => 'Periode: '.$this->getPeriodeLabel()
+            )
+            ->modalSubmitActionLabel('Unduh PDF')
+            ->schema([
+                Select::make('klasifikasi')
+                    ->label('Klasifikasi pengeluaran')
+                    ->options([
+                        'semua' => 'Semua pengeluaran',
+                        'operasional' => 'Operasional',
+                        'investasi' => 'Investasi',
+                    ])
+                    ->default('semua')
+                    ->required()
+                    ->rules([
+                        Rule::in(['semua', 'operasional', 'investasi']),
+                    ]),
+            ])
             ->action(
-                fn (): StreamedResponse => $this->exportPdf('pengeluaran')
+                fn (array $data): StreamedResponse => $this->exportPdf(
+                    'pengeluaran',
+                    $data['klasifikasi'],
+                )
             );
     }
 
@@ -179,8 +201,10 @@ class Laporan extends Page
             : 'Tahun '.$mulai->format('Y');
     }
 
-    protected function exportPdf(string $jenis): StreamedResponse
-    {
+    protected function exportPdf(
+        string $jenis,
+        string $klasifikasi = 'semua',
+    ): StreamedResponse {
         $user = Filament::auth()->user();
         $usaha = Filament::getTenant();
 
@@ -196,6 +220,7 @@ class Laporan extends Page
             $mulai,
             $selesai,
             $this->filters['periode'] === 'bulanan',
+            $klasifikasi,
         );
     }
 }

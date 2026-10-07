@@ -1,0 +1,20 @@
+{
+    "id": "/app",
+    "name": "Pariwangi Group",
+    "short_name": "Pariwangi Group",
+    "description": "Pencatatan usaha, siklus, dan keuangan.",
+    "lang": "id",
+    "start_url": "/app",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#FFBA00",
+    "icons": [
+        {
+            "src": "/logos-PariwangiGroup-andro.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Pages\Laporan;
 use App\Filament\Pages\Tenancy\EditUsaha;
 use App\Filament\Pages\Tenancy\RegisterUsaha;
 use App\Filament\Resources\Sikluses\Pages\ListSikluses;
@@ -26,7 +27,6 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Illuminate\View\View;
-use App\Filament\Pages\Laporan;
 
 class AppPanelProvider extends PanelProvider
 {
@@ -37,11 +37,16 @@ class AppPanelProvider extends PanelProvider
             ->id('app')
             ->path('app')
             ->spa()
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): View => view('filament.hooks.pwa-head'),
+            )
             ->viteTheme('resources/css/filament.css')
             ->brandLogo(fn (): View => view('brand-logo', ['logoPath' => 'logos-black.webp']))
             ->darkModeBrandLogo(fn (): View => view('brand-logo', ['logoPath' => 'logos-white.webp']))
             ->brandLogoHeight('2rem')
             ->login()
+            ->font('Inter')
             ->registration()
             ->passwordReset()
             ->profile(EditProfile::class)

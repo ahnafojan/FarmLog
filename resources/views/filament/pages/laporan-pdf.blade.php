@@ -11,7 +11,7 @@
 
         body {
             margin: 0;
-            font-family: "DejaVu Sans", sans-serif;
+            font-family: "Inter", sans-serif;
             font-size: 9pt;
             line-height: 1.5;
             color: #263b35;
@@ -79,7 +79,7 @@
         }
 
         .business-caption {
-            margin-top: 6pt;
+            margin-top: 4pt;
             font-size: 8pt;
             color: #73817b;
         }
@@ -371,6 +371,14 @@
                 <p class="value">{{ $printedBy }}</p>
             </td>
         </tr>
+        @if (! $isSales)
+            <tr>
+                <td colspan="3">
+                    <p class="label">KLASIFIKASI PENGELUARAN</p>
+                    <p class="value">{{ $klasifikasiLabel }}</p>
+                </td>
+            </tr>
+        @endif
     </table>
 
     <table class="summary">
@@ -390,6 +398,17 @@
                     <p class="label">{{ $labaBersih < 0 ? 'RUGI BERSIH' : 'LABA BERSIH' }}</p>
                     <p class="amount {{ $labaBersih < 0 ? 'negative' : 'positive' }}">{{ $rupiah($labaBersih) }}</p>
                     <p class="hint">Penjualan dikurangi operasional</p>
+                </td>
+            @elseif ($klasifikasi !== 'semua')
+                <td class="expense" style="width: 50%">
+                    <p class="label">TOTAL PENGELUARAN {{ strtoupper($klasifikasiLabel) }}</p>
+                    <p class="amount negative">{{ $rupiah($totalPengeluaran) }}</p>
+                    <p class="hint">Sesuai klasifikasi dan periode yang dipilih</p>
+                </td>
+                <td style="width: 50%">
+                    <p class="label">JUMLAH TRANSAKSI</p>
+                    <p class="amount">{{ $transaksis->count() }}</p>
+                    <p class="hint">Transaksi pengeluaran dalam laporan ini</p>
                 </td>
             @else
                 <td>
@@ -424,17 +443,21 @@
         <thead>
             <tr>
                 <th style="width: 5%">No.</th>
-                <th style="width: 16%">Tanggal</th>
-                <th style="width: 30%">Kategori / catatan</th>
-                <th style="width: 20%">{{ $isSales ? 'Pembeli' : 'Klasifikasi' }}</th>
-                <th style="width: 29%" class="nominal">Nominal</th>
+                <th style="width: {{ $isSales ? '13%' : '16%' }}">Tanggal</th>
+                <th style="width: {{ $isSales ? '20%' : '30%' }}">Kategori / catatan</th>
+                <th style="width: {{ $isSales ? '14%' : '20%' }}">{{ $isSales ? 'Pembeli' : 'Klasifikasi' }}</th>
+                @if ($isSales)
+                    <th style="width: 13%" class="nominal">Jumlah</th>
+                    <th style="width: 17%" class="nominal">Harga satuan</th>
+                @endif
+                <th style="width: {{ $isSales ? '18%' : '29%' }}" class="nominal">Nominal</th>
             </tr>
         </thead>
         <tbody>
             @forelse ($transaksis as $transaksi)
                 <tr class="{{ $loop->even ? 'alternate' : '' }}">
                     <td class="number">{{ $loop->iteration }}</td>
-                    <td>{{ $transaksi->tanggal?->format('d/m/Y') }}</td>
+                    <td>{{ $transaksi->tanggal?->translatedFormat('d M Y') }}</td>
                     <td>
                         <p class="category">{{ $transaksi->kategori?->nama ?? '-' }}</p>
                         @if (filled($transaksi->catatan))
@@ -444,14 +467,27 @@
                     <td>
                         {{ $isSales ? ($transaksi->pembeli ?: '-') : ucfirst($transaksi->kategori?->klasifikasi ?? '-') }}
                     </td>
+                    @if ($isSales)
+                        <td class="nominal">
+                            {{ $transaksi->qty !== null ? rtrim(rtrim(number_format((float) $transaksi->qty, 3, ',', '.'), '0'), ',') : '-' }}
+                            {{ $transaksi->satuan }}
+                        </td>
+                        <td class="nominal">
+                            {{ $transaksi->harga_satuan !== null ? $rupiah($transaksi->harga_satuan) : '-' }}
+                        </td>
+                    @endif
                     <td class="nominal {{ $isSales ? 'positive' : 'negative' }}">
                         <strong>{{ $rupiah($transaksi->total) }}</strong>
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="empty">
-                        Belum ada {{ $isSales ? 'penjualan' : 'pengeluaran' }} pada periode {{ $periode }}.
+                    <td colspan="{{ $isSales ? 7 : 5 }}" class="empty">
+                        Belum ada {{ $isSales ? 'penjualan' : 'pengeluaran' }}
+                        @if (! $isSales && $klasifikasi !== 'semua')
+                            {{ strtolower($klasifikasiLabel) }}
+                        @endif
+                        pada periode {{ $periode }}.
                     </td>
                 </tr>
             @endforelse
@@ -474,8 +510,10 @@
                 Laba bersih dihitung dari total penjualan dikurangi pengeluaran operasional.
                 Pengeluaran investasi dicatat terpisah dan tidak mengurangi laba pada laporan ini.
             @else
-                Pengeluaran dikelompokkan menjadi operasional dan investasi sesuai kategori transaksi.
-                Rincian di atas mencakup pengeluaran pada periode yang dipilih.
+                Laporan ini mencakup
+                {{ $klasifikasi === 'semua' ? 'seluruh pengeluaran' : 'pengeluaran '.strtolower($klasifikasiLabel) }}
+                pada periode yang dipilih.
+                Total merupakan penjumlahan nominal transaksi pada rincian di atas.
             @endif
         </div>
     </div>

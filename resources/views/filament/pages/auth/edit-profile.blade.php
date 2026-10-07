@@ -12,6 +12,7 @@
         </header>
 
         {{ $this->content }}
+        @include('filament.hooks.install-app')
     </main>
 
     <x-farmlog.bottom-navigation :tenant="$tenant" />

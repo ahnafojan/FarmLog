@@ -31,7 +31,7 @@ class Laporan extends Page
     protected string $view = 'filament.pages.laporan';
 
     /**
-     * @var array{periode?: string, tahun?: int, bulan?: int}
+     * @var array{periode?: string, tahun?: int, bulan?: int, sikluses_id?: int|null}
      */
     #[Locked]
     public array $filters = [];
@@ -42,6 +42,7 @@ class Laporan extends Page
             'periode' => 'bulanan',
             'tahun' => now()->year,
             'bulan' => now()->month,
+            'sikluses_id' => null,
         ];
     }
 
@@ -72,6 +73,17 @@ class Laporan extends Page
             ->modalSubmitActionLabel('Terapkan filter')
             ->fillForm(fn (): array => $this->filters)
             ->schema([
+                Select::make('sikluses_id')
+                    ->label('Siklus')
+                    ->placeholder('Semua siklus')
+                    ->searchable()
+                    ->searchPrompt('Cari nama siklus')
+                    ->options(fn (): array => Filament::getTenant()->sikluses()
+                        ->orderByDesc('tanggal_mulai')->orderByDesc('id')
+                        ->pluck('nama', 'id')->all())
+                    ->rules(['nullable', 'integer'])
+                    ->helperText('Kosongkan untuk semua siklus, termasuk transaksi umum. Periode tetap mengikuti tanggal transaksi.'),
+
                 Select::make('periode')
                     ->label('Periode')
                     ->options([
@@ -116,6 +128,7 @@ class Laporan extends Page
                     'periode' => $data['periode'],
                     'tahun' => (int) $data['tahun'],
                     'bulan' => (int) ($data['bulan'] ?? now()->month),
+                    'sikluses_id' => filled($data['sikluses_id'] ?? null) ? (int) $data['sikluses_id'] : null,
                 ];
             });
     }
@@ -138,7 +151,7 @@ class Laporan extends Page
             ->color('gray')
             ->modalHeading('Export laporan pengeluaran')
             ->modalDescription(
-                fn (): string => 'Periode: '.$this->getPeriodeLabel()
+                fn (): string => 'Periode: '.$this->getPeriodeLabel().' | Siklus: '.$this->getSiklusLabel()
             )
             ->modalSubmitActionLabel('Unduh PDF')
             ->schema([
@@ -201,6 +214,16 @@ class Laporan extends Page
             : 'Tahun '.$mulai->format('Y');
     }
 
+    public function getSiklusLabel(): string
+    {
+        if ($this->filters['sikluses_id'] === null) {
+            return 'Semua siklus';
+        }
+
+        return Filament::getTenant()->sikluses()->whereKey($this->filters['sikluses_id'])->value('nama')
+            ?? 'Siklus tidak tersedia';
+    }
+
     protected function exportPdf(
         string $jenis,
         string $klasifikasi = 'semua',
@@ -221,6 +244,7 @@ class Laporan extends Page
             $selesai,
             $this->filters['periode'] === 'bulanan',
             $klasifikasi,
+            $this->filters['sikluses_id'],
         );
     }
 }

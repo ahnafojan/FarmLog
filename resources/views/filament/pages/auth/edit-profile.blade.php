@@ -1,7 +1,7 @@
 <div class="farm-profile-shell">
     <a href="#profile-content" class="fi-skip-link fi-sr-only">Langsung ke konten</a>
 
-    <div class="farm-profile-topbar">
+    <div class="farm-topbar">
         <x-farmlog.mobile-header :tenant="$tenant" :usahas="$usahas" :show-user-menu="true" />
     </div>
 

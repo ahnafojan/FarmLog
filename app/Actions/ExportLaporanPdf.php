@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExportLaporanPdf
@@ -25,6 +26,7 @@ class ExportLaporanPdf
         CarbonImmutable $selesai,
         bool $bulanan,
         string $klasifikasi = 'semua',
+        ?int $siklusId = null,
     ): StreamedResponse {
         Gate::forUser($user)->authorize('view', $usaha);
 
@@ -38,6 +40,12 @@ class ExportLaporanPdf
                 ],
             ],
         )->validate();
+
+        $siklus = $siklusId === null ? null : $usaha->sikluses()->find($siklusId);
+
+        if ($siklusId !== null && $siklus === null) {
+            throw ValidationException::withMessages(['sikluses_id' => 'Pilih siklus yang tersedia dari usaha ini.']);
+        }
 
         if ($jenis === 'penjualan') {
             $klasifikasi = 'semua';
@@ -53,6 +61,10 @@ class ExportLaporanPdf
             ->where('transaksis.usahas_id', $usaha->getKey())
             ->where(fn (Builder $query) => $query->whereNull('sikluses_id')->orWhereHas('siklus'))
             ->whereBetween('transaksis.tanggal', [$mulai->toDateString(), $selesai->toDateString()]);
+
+        if ($siklus !== null) {
+            $query->where('transaksis.sikluses_id', $siklus->getKey());
+        }
 
         if ($jenis === 'pengeluaran') {
             $query->where('transaksis.arah', 'pengeluaran');
@@ -89,6 +101,7 @@ class ExportLaporanPdf
                     ? 'Laporan Pengeluaran'
                     : 'Laporan Pengeluaran '.$klasifikasiLabel),
             'periode' => $bulanan ? $mulai->locale('id')->translatedFormat('F Y') : 'Tahun '.$mulai->format('Y'),
+            'siklusLabel' => $siklus?->nama ?? 'Semua siklus',
             'transaksis' => $transaksis,
             'totalPenjualan' => $summary['pemasukan'],
             'totalOperasional' => $summary['operasional'],
@@ -100,9 +113,10 @@ class ExportLaporanPdf
         ])->setPaper('a4', 'portrait');
 
         $kodePeriode = $mulai->format($bulanan ? 'Y-m' : 'Y');
+        $kodeSiklus = $siklus === null ? '' : '-siklus-'.$siklus->getKey();
         $namaFile = $jenis === 'pengeluaran'
-            ? "laporan-pengeluaran-{$klasifikasi}-{$kodePeriode}.pdf"
-            : "laporan-{$jenis}-{$kodePeriode}.pdf";
+            ? "laporan-pengeluaran-{$klasifikasi}-{$kodePeriode}{$kodeSiklus}.pdf"
+            : "laporan-{$jenis}-{$kodePeriode}{$kodeSiklus}.pdf";
 
         return response()->streamDownload(
             function () use ($pdf): void {

@@ -4,8 +4,12 @@
             Periode: {{ $this->getPeriodeLabel() }}
         </x-slot>
 
+        <x-slot name="description">
+            Siklus: {{ $this->getSiklusLabel() }}
+        </x-slot>
+
         <p class="text-sm text-gray-600 dark:text-gray-400">
-            Pilih periode melalui tombol Filter, kemudian unduh
+            Pilih periode dan siklus melalui tombol Filter, kemudian unduh
             laporan penjualan dan laba bersih atau laporan pengeluaran.
             Saat memilih Export Pengeluaran, pilih semua pengeluaran, operasional, atau investasi.
             Kedua laporan menggunakan tanggal transaksi.

@@ -16,7 +16,7 @@ beforeEach(function () {
 });
 
 test('mobile hooks render nothing without an authenticated tenant', function () {
-    expect((string) FilamentView::renderHook(PanelsRenderHook::CONTENT_START))->toBe('');
+    expect((string) FilamentView::renderHook(PanelsRenderHook::TOPBAR_BEFORE))->toBe('');
     expect((string) FilamentView::renderHook(PanelsRenderHook::CONTENT_END))->toBe('');
 });
 
@@ -28,7 +28,7 @@ test('shared mobile header renders supplied businesses without a dashboard compo
     $this->actingAs($user);
     Filament::setTenant($usaha);
 
-    $html = (string) FilamentView::renderHook(PanelsRenderHook::CONTENT_START);
+    $html = (string) FilamentView::renderHook(PanelsRenderHook::TOPBAR_BEFORE);
 
     expect($html)->toContain('Ganti usaha', 'Kolam &lt;Budi&gt;', '/app/kolam-budi', 'Pengaturan usaha')
         ->not->toContain('Kolam <Budi>');

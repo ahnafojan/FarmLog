@@ -306,6 +306,10 @@
         .page-number:after {
             content: counter(page);
         }
+
+        .metadata {
+            table-layout: fixed;
+        }
     </style>
 </head>
 
@@ -350,12 +354,17 @@
     </div>
 
     <table class="metadata">
+        <colgroup>
+            <col style="width: 34%">
+            <col style="width: 31%">
+            <col style="width: 35%">
+        </colgroup>
         <tr>
-            <td style="width: 34%">
+            <td>
                 <p class="label">PERIODE LAPORAN</p>
                 <p class="value">{{ $periode }}</p>
             </td>
-            <td style="width: 31%">
+            <td>
                 <p class="label">DASAR PENCATATAN</p>
                 <p class="value">Tanggal transaksi</p>
             </td>
@@ -366,17 +375,24 @@
             </td>
         </tr>
         <tr>
-            <td colspan="3" class="printed-by">
+            <td class="printed-by">
                 <p class="label">DICETAK OLEH</p>
                 <p class="value">{{ $printedBy }}</p>
             </td>
+            <td class="printed-by">
+                <p class="label">SIKLUS</p>
+                <p class="value">{{ $siklusLabel }}</p>
+            </td>
+            <td></td>
         </tr>
-        @if (! $isSales)
+        @if (!$isSales)
             <tr>
-                <td colspan="3">
+                <td>
                     <p class="label">KLASIFIKASI PENGELUARAN</p>
                     <p class="value">{{ $klasifikasiLabel }}</p>
                 </td>
+                <td></td>
+                <td></td>
             </tr>
         @endif
     </table>
@@ -484,7 +500,7 @@
                 <tr>
                     <td colspan="{{ $isSales ? 7 : 5 }}" class="empty">
                         Belum ada {{ $isSales ? 'penjualan' : 'pengeluaran' }}
-                        @if (! $isSales && $klasifikasi !== 'semua')
+                        @if (!$isSales && $klasifikasi !== 'semua')
                             {{ strtolower($klasifikasiLabel) }}
                         @endif
                         pada periode {{ $periode }}.
@@ -511,7 +527,7 @@
                 Pengeluaran investasi dicatat terpisah dan tidak mengurangi laba pada laporan ini.
             @else
                 Laporan ini mencakup
-                {{ $klasifikasi === 'semua' ? 'seluruh pengeluaran' : 'pengeluaran '.strtolower($klasifikasiLabel) }}
+                {{ $klasifikasi === 'semua' ? 'seluruh pengeluaran' : 'pengeluaran ' . strtolower($klasifikasiLabel) }}
                 pada periode yang dipilih.
                 Total merupakan penjumlahan nominal transaksi pada rincian di atas.
             @endif

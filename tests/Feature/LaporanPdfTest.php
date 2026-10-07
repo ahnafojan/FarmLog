@@ -15,6 +15,7 @@ function laporanPdfData(string $jenis, array $transaksis = []): array
         'klasifikasiLabel' => 'Semua pengeluaran',
         'judul' => 'Laporan Usaha',
         'periode' => 'Oktober 2026',
+        'siklusLabel' => 'Semua siklus (termasuk transaksi umum)',
         'transaksis' => collect($transaksis),
         'totalPenjualan' => 0,
         'totalOperasional' => 0,
@@ -66,3 +67,12 @@ test('sales report renders an empty period with the quantity and price headings'
 
     $view->assertSeeTextInOrder(['Jumlah', 'Harga satuan', 'Belum ada penjualan']);
 });
+
+test('reports display and escape the selected cycle name', function (string $jenis) {
+    $data = laporanPdfData($jenis);
+    $data['siklusLabel'] = 'Kolam <Budi>';
+
+    $view = $this->view('filament.pages.laporan-pdf', $data);
+
+    $view->assertSee('Kolam &lt;Budi&gt;', false)->assertDontSee('Kolam <Budi>', false);
+})->with(['penjualan', 'pengeluaran']);

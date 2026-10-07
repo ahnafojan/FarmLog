@@ -56,9 +56,8 @@
 .farm-catat {
     @apply fixed right-5 bottom-6 z-20 min-h-11 shadow-lg;
 }
-.farm-mobile-header, .farm-bottom-nav { @apply hidden; }
 .farm-bottom-nav {
-    @apply fixed inset-x-0 bottom-0 z-20 grid-cols-4 border-t border-gray-200 bg-white px-3 pt-2 dark:border-gray-800 dark:bg-gray-900;
+    @apply fixed inset-x-0 bottom-0 z-20 hidden grid-cols-4 border-t border-gray-200 bg-white px-3 pt-2 dark:border-gray-800 dark:bg-gray-900;
     padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
     & a { @apply flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400; }
     & a[aria-current] { @apply bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400; }
@@ -72,9 +71,11 @@
         padding-inline: max(0.75rem, calc((100% - 48rem) / 2));
     }
 }
-.farm-profile-topbar {
+.farm-topbar {
     @apply sticky top-0 z-20 border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900;
-    & .farm-mobile-header { @apply mx-auto flex max-w-5xl items-center justify-between gap-3 border-0 px-4 py-3 sm:px-6; }
+}
+.farm-mobile-header {
+    @apply mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6;
 }
 .farm-profile-content {
     @apply mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 pt-6 sm:gap-6 sm:px-6 sm:pt-8;
@@ -106,9 +107,6 @@
         & .fi-topbar-ctn, & .fi-sidebar, & .fi-sidebar-close-overlay { display: none; }
         & .fi-main { padding-inline: 1rem; padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); }
         & .fi-page-header-main-ctn { @apply gap-y-5 pt-3 pb-0; }
-    }
-    .farm-mobile-header {
-        @apply flex items-center justify-between gap-3 border-b border-gray-200 py-3 dark:border-gray-800;
     }
     .farm-bottom-nav {
         @apply grid;

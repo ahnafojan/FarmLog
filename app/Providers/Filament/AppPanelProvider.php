@@ -57,7 +57,7 @@ class AppPanelProvider extends PanelProvider
             ->tenant(Usaha::class, slugAttribute: 'slug', ownershipRelationship: 'usaha')
             ->tenantRegistration(RegisterUsaha::class)
             ->tenantProfile(EditUsaha::class)
-            ->renderHook(PanelsRenderHook::CONTENT_START, function (): View|string {
+            ->renderHook(PanelsRenderHook::TOPBAR_BEFORE, function (): View|string {
                 $user = Filament::auth()->user();
                 $tenant = Filament::getTenant();
                 $panel = Filament::getCurrentPanel();

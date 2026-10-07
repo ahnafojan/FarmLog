@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#FFBA00" />
+        <title>Koneksi diperlukan — Pariwangi Group</title>
+
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                margin: 0;
+                min-height: 100vh;
+                min-height: 100dvh;
+                display: grid;
+                place-items: center;
+                padding: 24px;
+                background: #fafafa;
+                color: #18181b;
+                font-family: system-ui, sans-serif;
+            }
+
+            main {
+                width: 100%;
+                max-width: 420px;
+                text-align: center;
+            }
+
+            .brand {
+                font-weight: 700;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            p {
+                line-height: 1.6;
+            }
+
+            button {
+                margin-top: 16px;
+                padding: 12px 24px;
+                border: 0;
+                border-radius: 12px;
+                background: #ffba00;
+                color: #18181b;
+                font: inherit;
+                font-weight: 600;
+                cursor: pointer;
+            }
+
+            button:focus-visible {
+                outline: 3px solid #18181b;
+                outline-offset: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <p class="brand">Pariwangi Group</p>
+
+            <h1>Koneksi diperlukan</h1>
+
+            <p>
+                Aplikasi belum dapat terhubung ke server. Periksa koneksi
+                internet Anda, lalu coba kembali.
+            </p>
+
+            <button id="retry" type="button">Coba lagi</button>
+        </main>
+
+        <script>
+            document.getElementById("retry").addEventListener("click", () => {
+                window.location.reload();
+            });
+        </script>
+    </body>
+</html>

@@ -41,6 +41,10 @@ class AppPanelProvider extends PanelProvider
                 PanelsRenderHook::HEAD_END,
                 fn (): View => view('filament.hooks.pwa-head'),
             )
+            ->renderHook(
+                PanelsRenderHook::BODY_START,
+                fn (): View => view('filament.hooks.offline-banner'),
+            )
             ->viteTheme('resources/css/filament.css')
             ->brandLogo(fn (): View => view('brand-logo', ['logoPath' => 'logos-black.webp']))
             ->darkModeBrandLogo(fn (): View => view('brand-logo', ['logoPath' => 'logos-white.webp']))

@@ -3,7 +3,6 @@
 namespace App\Actions;
 
 use App\Models\Siklus;
-use App\Models\TemplatePenanda;
 use App\Models\Usaha;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -38,8 +37,8 @@ class CreateSiklus
 
             $siklus = $usaha->sikluses()->create(collect($data)->except('harga_bibit')->all());
 
-            foreach (TemplatePenanda::query()->where('template_usahas_id', $usaha->template_usahas_id)->orderBy('urutan')->get() as $milestone) {
-                $days = $milestone->hari_ke - $siklus->umur_masuk_hari;
+            foreach (config('usaha.jenis.'.$usaha->jenis_usaha.'.penandas', []) as $milestone) {
+                $days = $milestone['hari_ke'] - $siklus->umur_masuk_hari;
 
                 if ($days < 0) {
                     continue;
@@ -47,10 +46,10 @@ class CreateSiklus
 
                 $copy = $siklus->penandas()->make();
                 $copy->forceFill([
-                    'nama' => $milestone->nama,
-                    'jenis' => $milestone->jenis,
+                    'nama' => $milestone['nama'],
+                    'jenis' => $milestone['jenis'],
                     'tanggal' => $siklus->tanggal_mulai->copy()->addDays($days),
-                    'pengingat_hari_sebelum' => $milestone->pengingat_hari_sebelum,
+                    'pengingat_hari_sebelum' => $milestone['pengingat_hari_sebelum'] ?? null,
                 ])->save();
             }
 

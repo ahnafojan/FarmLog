@@ -11,12 +11,9 @@ use App\Filament\Resources\Sikluses\Pages\ListSikluses;
 use App\Filament\Resources\Transaksis\Pages\ManageTransaksis;
 use App\Filament\Widgets\RevenueProfitChart;
 use App\Models\Siklus;
-use App\Models\TemplateUsaha;
 use App\Models\Usaha;
 use App\Models\User;
 use Carbon\CarbonImmutable;
-use Database\Seeders\TemplateKategoriSeeder;
-use Database\Seeders\TemplatePenandaSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Livewire\Livewire;
@@ -24,10 +21,6 @@ use Livewire\Livewire;
 uses(LazilyRefreshDatabase::class);
 
 beforeEach(function () {
-    if (config('database.default') !== 'pgsql') {
-        $this->markTestSkipped('Gunakan database PostgreSQL khusus pengujian untuk migration aplikasi.');
-    }
-
     Filament::setCurrentPanel(Filament::getPanel('app'));
     $this->travelTo(now()->setDate(2026, 9, 30)->startOfDay());
 });
@@ -35,11 +28,10 @@ beforeEach(function () {
 /** @return array{0: User, 1: Usaha} */
 function dashboardOwner(string $template = 'lele-pembesaran'): array
 {
-    test()->seed([TemplateKategoriSeeder::class, TemplatePenandaSeeder::class]);
     $user = User::factory()->create();
     $usaha = app(CreateUsaha::class)->handle($user, [
         'nama' => 'Lele Pak Budi',
-        'template_usahas_id' => TemplateUsaha::query()->where('kode', $template)->sole()->id,
+        'jenis_usaha' => $template,
     ]);
     test()->actingAs($user);
     Filament::setTenant($usaha);
@@ -158,7 +150,7 @@ test('profile transaction uses the selected owned business on subsequent request
     [$user, $usaha] = dashboardOwner();
     Filament::setTenant(null);
     $secondUsaha = app(CreateUsaha::class)->handle($user, [
-        'nama' => 'Usaha Kedua', 'template_usahas_id' => $usaha->template_usahas_id,
+        'nama' => 'Usaha Kedua', 'jenis_usaha' => $usaha->jenis_usaha,
     ]);
     $category = $secondUsaha->kategoris()->where('nama', 'Listrik/air')->sole();
     Filament::setTenant(null);
@@ -412,7 +404,7 @@ test('chart excludes deleted transactions deleted cycles and another tenants rec
     Filament::setTenant(null);
     $otherUser = User::factory()->create();
     $otherUsaha = app(CreateUsaha::class)->handle($otherUser, [
-        'nama' => 'Usaha lain', 'template_usahas_id' => $usaha->template_usahas_id,
+        'nama' => 'Usaha lain', 'jenis_usaha' => $usaha->jenis_usaha,
     ]);
     Filament::setTenant($otherUsaha);
     dashboardCycle($otherUser, $otherUsaha);

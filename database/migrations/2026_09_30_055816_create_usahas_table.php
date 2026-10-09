@@ -12,12 +12,16 @@ return new class extends Migration
         Schema::create('usahas', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();                 // pemilik
-            $table->foreignId('template_usahas_id')->constrained('template_usahas')->restrictOnDelete();
+            $table->string('jenis_usaha', 50);
             $table->string('nama', 150);
-            $table->string('rekap_dasar', 20)->default('siklus_selesai'); // disalin dari template_usahas.rekap_default
+            $table->string('rekap_dasar', 20)->default('siklus_selesai');
             $table->text('catatan')->nullable();
             $table->timestamps();
             $table->softDeletes();
+            $table->string('nama_aktif', 150)->nullable()
+                ->virtualAs('CASE WHEN deleted_at IS NULL THEN nama ELSE NULL END');
+            $table->unique(['user_id', 'nama_aktif'], 'usahas_nama_per_user_uq');
+            $table->index(['user_id', 'deleted_at', 'nama'], 'usahas_pemilik_nama_idx');
         });
 
         DB::statement(<<<'SQL'
@@ -25,8 +29,6 @@ ALTER TABLE usahas ADD CONSTRAINT usahas_rekap_dasar_chk
     CHECK (rekap_dasar IN ('siklus_selesai', 'tanggal_transaksi'))
 SQL);
 
-        // Nama usahas unik per pemilik (usahas yang sudah dihapus tidak dihitung)
-        DB::statement('CREATE UNIQUE INDEX usahas_nama_per_user_uq ON usahas (user_id, nama) WHERE deleted_at IS NULL');
     }
 
     public function down(): void

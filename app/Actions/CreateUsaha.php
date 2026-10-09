@@ -2,8 +2,6 @@
 
 namespace App\Actions;
 
-use App\Models\TemplateKategori;
-use App\Models\TemplateUsaha;
 use App\Models\Usaha;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -13,27 +11,33 @@ use Illuminate\Validation\Rule;
 class CreateUsaha
 {
     /**
-     * @param  array{nama: string, template_usahas_id: int|string}  $data
+     * @param  array{nama: string, jenis_usaha: string}  $data
      */
     public function handle(User $user, array $data): Usaha
     {
         $data = Validator::make($data, [
             'nama' => ['required', 'string', 'max:150', Rule::unique('usahas', 'nama')->where('user_id', $user->id)->whereNull('deleted_at')],
-            'template_usahas_id' => ['required', Rule::exists('template_usahas', 'id')->where('aktif', true)],
+            'jenis_usaha' => ['required', 'string', Rule::in(array_keys(config('usaha.jenis')))],
         ])->validate();
 
         return DB::transaction(function () use ($user, $data): Usaha {
-            $template = TemplateUsaha::query()->findOrFail($data['template_usahas_id']);
-            $usaha = new Usaha(['nama' => $data['nama'], 'rekap_dasar' => $template->rekap_default]);
+            $defaults = config('usaha.jenis.'.$data['jenis_usaha']);
+            $usaha = new Usaha(['nama' => $data['nama'], 'rekap_dasar' => $defaults['rekap_default']]);
             $usaha->user()->associate($user);
-            $usaha->template()->associate($template);
+            $usaha->jenis_usaha = $data['jenis_usaha'];
             $usaha->save();
 
-            foreach (TemplateKategori::query()->where('template_usahas_id', $template->id)->orderBy('urutan')->get() as $category) {
-                $copy = $usaha->kategoris()->make($category->only([
-                    'nama', 'arah', 'klasifikasi', 'satuan_default', 'pakai_kuantitas', 'urutan',
-                ]));
-                $copy->kode_sistem = $category->kode_sistem;
+            foreach ($defaults['kategoris'] as $index => $category) {
+                $direction = $category['arah'] ?? 'pengeluaran';
+                $copy = $usaha->kategoris()->make([
+                    'nama' => $category['nama'],
+                    'arah' => $direction,
+                    'klasifikasi' => $direction === 'pemasukan' ? null : ($category['klasifikasi'] ?? 'operasional'),
+                    'satuan_default' => $category['satuan_default'] ?? null,
+                    'pakai_kuantitas' => isset($category['satuan_default']),
+                    'urutan' => $index + 1,
+                ]);
+                $copy->kode_sistem = $category['kode_sistem'] ?? null;
                 $copy->save();
             }
 

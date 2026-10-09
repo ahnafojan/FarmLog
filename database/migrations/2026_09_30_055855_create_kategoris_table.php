@@ -25,6 +25,7 @@ return new class extends Migration
             $table->unique(['usahas_id', 'arah', 'nama']);
             // Target FK komposit dari transaksi (menjamin usahas dan arah sama)
             $table->unique(['id', 'usahas_id', 'arah'], 'kategoris_id_usahas_arah_uq');
+            $table->unique(['usahas_id', 'kode_sistem'], 'kategoris_kode_sistem_uq');
         });
 
         DB::statement(<<<'SQL'
@@ -34,8 +35,6 @@ ALTER TABLE kategoris ADD CONSTRAINT kategoris_arah_klasifikasi_chk CHECK (
 )
 SQL);
 
-        // Satu kategoris dengan kode sistem yang sama per usahas (mis. hanya satu 'bibit')
-        DB::statement('CREATE UNIQUE INDEX kategoris_kode_sistem_uq ON kategoris (usahas_id, kode_sistem) WHERE kode_sistem IS NOT NULL');
     }
 
     public function down(): void

@@ -3,7 +3,6 @@
 namespace App\Filament\Pages\Tenancy;
 
 use App\Actions\CreateUsaha;
-use App\Models\TemplateUsaha;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -23,15 +22,17 @@ class RegisterUsaha extends RegisterTenant
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            Select::make('template_usahas_id')->label('Jenis usaha')->placeholder('Pilih jenis usaha')->required()
-                ->options(fn (): array => TemplateUsaha::query()->where('aktif', true)->orderBy('urutan')->pluck('nama', 'id')->all()),
+            Select::make('jenis_usaha')->label('Jenis usaha')->placeholder('Pilih jenis usaha')->required()
+                ->options(fn (): array => collect(config('usaha.jenis'))->mapWithKeys(
+                    fn (array $defaults, string $code): array => [$code => $defaults['nama']],
+                )->all()),
             TextInput::make('nama')->label('Nama usaha')->placeholder('Contoh: Ternak Maju Bersama')->required()->maxLength(150)
                 ->rules([Rule::unique('usahas', 'nama')->where('user_id', Filament::auth()->id())->whereNull('deleted_at')]),
         ]);
     }
 
     /**
-     * @param  array{nama: string, template_usahas_id: int|string}  $data
+     * @param  array{nama: string, jenis_usaha: string}  $data
      */
     protected function handleRegistration(array $data): Model
     {

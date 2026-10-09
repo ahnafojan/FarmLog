@@ -25,6 +25,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
+            $table->index(['usahas_id', 'deleted_at', 'tanggal', 'id'], 'transaksis_usahas_tanggal_idx');
+            $table->index(['sikluses_id', 'deleted_at', 'arah'], 'transaksis_sikluses_idx');
+            $table->index(['kategoris_id', 'usahas_id', 'deleted_at', 'tanggal', 'id'], 'transaksis_kategoris_tanggal_idx');
+
             // FK komposit: kategoris dan sikluses wajib milik usahas yang sama, arah wajib sama dengan kategoris
             $table->foreign(['kategoris_id', 'usahas_id', 'arah'], 'transaksis_kategoris_fk')
                 ->references(['id', 'usahas_id', 'arah'])->on('kategoris');
@@ -46,10 +50,6 @@ ALTER TABLE transaksis ADD CONSTRAINT transaksis_angka_chk CHECK (
 )
 SQL);
 
-        DB::statement('CREATE INDEX transaksis_usahas_tanggal_idx ON transaksis (usahas_id, tanggal DESC) WHERE deleted_at IS NULL');
-        DB::statement('CREATE INDEX transaksis_sikluses_idx ON transaksis (sikluses_id) WHERE deleted_at IS NULL');
-        // Mengisi otomatis harga satuan dari transaksis terakhir kategoris yang sama
-        DB::statement('CREATE INDEX transaksis_kategoris_tanggal_idx ON transaksis (kategoris_id, tanggal DESC) WHERE deleted_at IS NULL');
     }
 
     public function down(): void

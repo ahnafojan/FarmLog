@@ -22,7 +22,8 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['usahas_id', 'status']);
+            $table->index(['usahas_id', 'deleted_at', 'status', 'tanggal_mulai', 'id'], 'sikluses_status_mulai_idx');
+            $table->index(['usahas_id', 'deleted_at', 'status', 'tanggal_selesai'], 'sikluses_selesai_idx');
             // Target FK komposit dari transaksi (menjamin usahas sama)
             $table->unique(['id', 'usahas_id'], 'sikluses_id_usahas_uq');
         });
@@ -39,11 +40,6 @@ ALTER TABLE sikluses ADD CONSTRAINT sikluses_angka_chk
     CHECK (umur_masuk_hari >= 0 AND populasi_awal > 0)
 SQL);
 
-        // Rekap dengan dasar sikluses selesai
-        DB::statement(<<<'SQL'
-CREATE INDEX sikluses_selesai_idx ON sikluses (usahas_id, tanggal_selesai)
-    WHERE status = 'selesai' AND deleted_at IS NULL
-SQL);
     }
 
     public function down(): void

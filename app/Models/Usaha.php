@@ -15,6 +15,8 @@ class Usaha extends Model implements HasName
 
     protected $fillable = ['nama', 'rekap_dasar', 'catatan'];
 
+    protected $hidden = ['nama_aktif'];
+
     protected static function booted(): void
     {
         static::creating(function (Usaha $usaha): void {
@@ -37,11 +39,6 @@ class Usaha extends Model implements HasName
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function template(): BelongsTo
-    {
-        return $this->belongsTo(TemplateUsaha::class, 'template_usahas_id');
     }
 
     public function kategoris(): HasMany

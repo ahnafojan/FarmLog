@@ -19,7 +19,7 @@ return new class extends Migration
             $table->timestamp('selesai_at')->nullable();
             $table->timestamps();
 
-            $table->index('sikluses_id');
+            $table->index(['sikluses_id', 'selesai_at', 'tanggal', 'id'], 'sikluses_penandas_aktif_idx');
         });
 
         DB::statement(<<<'SQL'
@@ -32,8 +32,6 @@ ALTER TABLE sikluses_penandas ADD CONSTRAINT sikluses_penandas_pengingat_chk
     CHECK (pengingat_hari_sebelum IS NULL OR pengingat_hari_sebelum >= 0)
 SQL);
 
-        // penandas yang belum selesai (untuk pengingat dan hitung mundur)
-        DB::statement('CREATE INDEX sikluses_penandas_aktif_idx ON sikluses_penandas (tanggal) WHERE selesai_at IS NULL');
     }
 
     public function down(): void

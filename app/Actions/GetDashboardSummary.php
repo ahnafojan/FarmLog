@@ -71,29 +71,32 @@ class GetDashboardSummary
     {
         $dates = [$start->toDateString(), $end->toDateString()];
 
-        $transactions = Transaksi::query()->where('transaksis.usahas_id', $usaha->id)
-            ->where(fn (Builder $query) => $query->whereNull('sikluses_id')->orWhereHas('siklus'));
+        $transactions = Transaksi::query()->where('transaksis.usahas_id', $usaha->id);
         $periodTransactions = clone $transactions;
 
         if ($basis === 'tanggal_transaksi') {
-            $periodTransactions->whereBetween('transaksis.tanggal', $dates);
+            $periodTransactions->whereBetween('transaksis.tanggal', $dates)
+                ->where(fn (Builder $query) => $query->whereNull('sikluses_id')->orWhereHas('siklus'));
         } else {
-            $periodTransactions->where(function (Builder $query) use ($dates): void {
-                $query->whereHas('siklus', fn (Builder $cycle) => $cycle->where('status', 'selesai')->whereBetween('tanggal_selesai', $dates))
+            $periodTransactions->where(function (Builder $query) use ($dates, $usaha): void {
+                $query->whereIn('sikluses_id', $usaha->sikluses()->select('id')
+                    ->where('status', 'selesai')->whereBetween('tanggal_selesai', $dates))
                     ->orWhere(fn (Builder $general) => $general->whereNull('sikluses_id')->whereBetween('transaksis.tanggal', $dates));
             });
         }
         $cycleData = $this->getSiklusCards->latestRunning($usaha);
+        $periodSummary = $this->periodSummary(clone $periodTransactions, $start, $end, $isMonthly ? 'day' : 'month', $basis);
 
         return [
-            'summary' => $this->getFinancialSummary->handle($periodTransactions),
-            'chart' => $this->chart(clone $periodTransactions, $start, $end, $isMonthly ? 'day' : 'month', $basis),
+            'summary' => $periodSummary['summary'],
+            'chart' => $periodSummary['chart'],
             'running' => $basis === 'siklus_selesai'
-                ? $this->getFinancialSummary->handle((clone $transactions)->whereHas('siklus', fn (Builder $query) => $query->where('status', 'berjalan')))
+                ? $this->getFinancialSummary->handle((clone $transactions)->whereIn('sikluses_id', $usaha->sikluses()->select('id')->where('status', 'berjalan')))
                 : null,
             'cycle' => $cycleData,
             'transactions' => (clone $periodTransactions)->with(['kategori:id,nama', 'siklus:id,nama'])
-                ->orderByDesc('tanggal')->orderByDesc('id')->limit(5)->get()
+                ->orderByDesc('tanggal')->orderByDesc('id')->limit(5)
+                ->get(['id', 'tanggal', 'kategoris_id', 'sikluses_id', 'arah', 'total'])
                 ->map(fn (Transaksi $transaction): array => [
                     'id' => $transaction->id,
                     'tanggal' => $transaction->tanggal->locale('id')->translatedFormat('d M Y'),
@@ -107,9 +110,9 @@ class GetDashboardSummary
 
     /**
      * @param  Builder<Transaksi>  $query
-     * @return array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}
+     * @return array{summary: array<string, int>, chart: array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}}
      */
-    private function chart(Builder $query, CarbonImmutable $start, CarbonImmutable $end, string $interval, string $basis): array
+    private function periodSummary(Builder $query, CarbonImmutable $start, CarbonImmutable $end, string $interval, string $basis): array
     {
         $dateColumn = 'transaksis.tanggal';
 
@@ -118,7 +121,7 @@ class GetDashboardSummary
             $dateColumn = 'COALESCE(sikluses.tanggal_selesai, transaksis.tanggal)';
         }
 
-        $bucket = "DATE_TRUNC('{$interval}', {$dateColumn})::date";
+        $bucket = $interval === 'day' ? $dateColumn : "DATE_FORMAT({$dateColumn}, '%Y-%m-01')";
         $totals = $this->getFinancialSummary->totalsQuery($query)
             ->selectRaw("{$bucket} AS period_date")
             ->groupByRaw($bucket)
@@ -138,6 +141,13 @@ class GetDashboardSummary
             $chart['laba_bersih'][] = $summary['laba_bersih'];
         }
 
-        return $chart;
+        return [
+            'summary' => $this->getFinancialSummary->fromTotals(
+                (int) $totals->sum('pemasukan'),
+                (int) $totals->sum('operasional'),
+                (int) $totals->sum('investasi'),
+            ),
+            'chart' => $chart,
+        ];
     }
 }

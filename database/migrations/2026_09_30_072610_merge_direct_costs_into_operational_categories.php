@@ -10,15 +10,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        foreach (['template_kategoris', 'kategoris'] as $table) {
-            DB::table($table)->where('klasifikasi', 'langsung')->update(['klasifikasi' => 'operasional']);
+        DB::table('kategoris')->where('klasifikasi', 'langsung')->update(['klasifikasi' => 'operasional']);
 
-            DB::statement("ALTER TABLE {$table} DROP CONSTRAINT {$table}_arah_klasifikasi_chk");
-            DB::statement("ALTER TABLE {$table} ADD CONSTRAINT {$table}_arah_klasifikasi_chk CHECK (
-                (arah = 'pengeluaran' AND klasifikasi IS NOT NULL AND klasifikasi IN ('operasional', 'investasi'))
-                OR (arah = 'pemasukan' AND klasifikasi IS NULL)
-            )");
-        }
+        DB::statement('ALTER TABLE kategoris DROP CHECK kategoris_arah_klasifikasi_chk');
+        DB::statement("ALTER TABLE kategoris ADD CONSTRAINT kategoris_arah_klasifikasi_chk CHECK (
+            (arah = 'pengeluaran' AND klasifikasi IS NOT NULL AND klasifikasi IN ('operasional', 'investasi'))
+            OR (arah = 'pemasukan' AND klasifikasi IS NULL)
+        )");
     }
 
     /**
@@ -27,12 +25,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        foreach (['template_kategoris', 'kategoris'] as $table) {
-            DB::statement("ALTER TABLE {$table} DROP CONSTRAINT {$table}_arah_klasifikasi_chk");
-            DB::statement("ALTER TABLE {$table} ADD CONSTRAINT {$table}_arah_klasifikasi_chk CHECK (
-                (arah = 'pengeluaran' AND klasifikasi IS NOT NULL AND klasifikasi IN ('langsung', 'operasional', 'investasi'))
-                OR (arah = 'pemasukan' AND klasifikasi IS NULL)
-            )");
-        }
+        DB::statement('ALTER TABLE kategoris DROP CHECK kategoris_arah_klasifikasi_chk');
+        DB::statement("ALTER TABLE kategoris ADD CONSTRAINT kategoris_arah_klasifikasi_chk CHECK (
+            (arah = 'pengeluaran' AND klasifikasi IS NOT NULL AND klasifikasi IN ('langsung', 'operasional', 'investasi'))
+            OR (arah = 'pemasukan' AND klasifikasi IS NULL)
+        )");
     }
 };

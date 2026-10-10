@@ -54,8 +54,17 @@ class TransaksiResource extends Resource
 
     public static function category(Get $get): ?Kategori
     {
-        return Filament::getTenant()->kategoris()->whereKey($get('kategoris_id'))
-            ->where('arah', $get('arah'))->first();
+        $categoryId = $get('kategoris_id');
+
+        if (blank($categoryId)) {
+            return null;
+        }
+
+        $usaha = Filament::getTenant();
+        $direction = $get('arah');
+
+        return once(fn (): ?Kategori => $usaha->kategoris()->whereKey($categoryId)
+            ->where('arah', $direction)->first());
     }
 
     public static function usesQuantity(Get $get): bool

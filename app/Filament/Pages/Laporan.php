@@ -2,7 +2,6 @@
 
 namespace App\Filament\Pages;
 
-use App\Actions\ExportLaporanPdf;
 use App\Filament\Actions\CatatTransaksiAction;
 use App\Models\Usaha;
 use App\Models\User;
@@ -18,7 +17,6 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class Laporan extends Page
 {
@@ -139,7 +137,9 @@ class Laporan extends Page
             ->label('Export Penjualan & Laba')
             ->icon(Heroicon::OutlinedArrowDownTray)
             ->action(
-                fn (): StreamedResponse => $this->exportPdf('penjualan')
+                function (): void {
+                    $this->downloadReport('penjualan');
+                }
             );
     }
 
@@ -153,7 +153,7 @@ class Laporan extends Page
             ->modalDescription(
                 fn (): string => 'Periode: '.$this->getPeriodeLabel().' | Siklus: '.$this->getSiklusLabel()
             )
-            ->modalSubmitActionLabel('Unduh PDF')
+            ->modalSubmitActionLabel('Unduh laporan')
             ->schema([
                 Select::make('klasifikasi')
                     ->label('Klasifikasi pengeluaran')
@@ -169,10 +169,9 @@ class Laporan extends Page
                     ]),
             ])
             ->action(
-                fn (array $data): StreamedResponse => $this->exportPdf(
-                    'pengeluaran',
-                    $data['klasifikasi'],
-                )
+                function (array $data): void {
+                    $this->downloadReport('pengeluaran', $data['klasifikasi']);
+                }
             );
     }
 
@@ -224,27 +223,23 @@ class Laporan extends Page
             ?? 'Siklus tidak tersedia';
     }
 
-    protected function exportPdf(
+    protected function downloadReport(
         string $jenis,
         string $klasifikasi = 'semua',
-    ): StreamedResponse {
+    ): void {
         $user = Filament::auth()->user();
         $usaha = Filament::getTenant();
 
         abort_unless($user instanceof User, 403);
         abort_unless($usaha instanceof Usaha, 404);
 
-        [$mulai, $selesai] = $this->periode();
+        $this->periode();
 
-        return app(ExportLaporanPdf::class)->handle(
-            $user,
-            $usaha,
-            $jenis,
-            $mulai,
-            $selesai,
-            $this->filters['periode'] === 'bulanan',
-            $klasifikasi,
-            $this->filters['sikluses_id'],
-        );
+        $this->redirect(route('laporan.download', [
+            'usaha' => $usaha->slug,
+            'jenis' => $jenis,
+            'klasifikasi' => $klasifikasi,
+            ...$this->filters,
+        ]), navigate: false);
     }
 }

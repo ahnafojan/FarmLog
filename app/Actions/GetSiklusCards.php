@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Models\Siklus;
 use App\Models\Usaha;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -33,8 +34,11 @@ class GetSiklusCards
             ->pluck('jumlah', 'status');
 
         $cycles = $this->cardQuery($usaha)
+            ->select(['id', 'usahas_id', 'nama', 'status', 'tanggal_mulai', 'tanggal_selesai', 'populasi_awal', 'umur_masuk_hari'])
             ->where('status', $status)
-            ->paginate(6, ['*'], 'cyclePage');
+            ->paginate(6, ['*'], 'cyclePage', total: (int) ($counts[$status] ?? 0));
+
+        $this->loadSummaries($usaha, $cycles->getCollection());
 
         $cycles->through(
             fn (Siklus $siklus): array => $this->toCard($siklus),
@@ -58,28 +62,29 @@ class GetSiklusCards
                     ->orderBy('tanggal')
                     ->orderBy('id'),
             ])
-            ->withSum([
-                'transaksis as pemasukan' => fn (Builder $query) => $query
-                    ->where('arah', 'pemasukan'),
-
-                'transaksis as operasional' => fn (Builder $query) => $query
-                    ->where('arah', 'pengeluaran')
-                    ->whereHas(
-                        'kategori',
-                        fn (Builder $category) => $category
-                            ->where('klasifikasi', 'operasional'),
-                    ),
-
-                'transaksis as investasi' => fn (Builder $query) => $query
-                    ->where('arah', 'pengeluaran')
-                    ->whereHas(
-                        'kategori',
-                        fn (Builder $category) => $category
-                            ->where('klasifikasi', 'investasi'),
-                    ),
-            ], 'total')
             ->orderByDesc('tanggal_mulai')
             ->orderByDesc('id');
+    }
+
+    /** @param Collection<int, Siklus> $cycles */
+    private function loadSummaries(Usaha $usaha, Collection $cycles): void
+    {
+        if ($cycles->isEmpty()) {
+            return;
+        }
+
+        $totals = $this->getFinancialSummary->totalsQuery(
+            $usaha->transaksis()->whereIn('sikluses_id', $cycles->modelKeys())->getQuery(),
+        )->selectRaw('transaksis.sikluses_id')
+            ->groupBy('transaksis.sikluses_id')
+            ->toBase()->get()->keyBy('sikluses_id');
+
+        foreach ($cycles as $cycle) {
+            $total = $totals->get($cycle->id);
+            $cycle->setAttribute('pemasukan', (int) ($total?->pemasukan ?? 0));
+            $cycle->setAttribute('operasional', (int) ($total?->operasional ?? 0));
+            $cycle->setAttribute('investasi', (int) ($total?->investasi ?? 0));
+        }
     }
 
     private function tocard(Siklus $siklus): array
@@ -138,6 +143,16 @@ class GetSiklusCards
 
         $siklus = $this->cardQuery($usaha)
             ->where('status', 'berjalan')
+            ->withSum([
+                'transaksis as pemasukan' => fn (Builder $query) => $query
+                    ->where('arah', 'pemasukan'),
+                'transaksis as operasional' => fn (Builder $query) => $query
+                    ->where('arah', 'pengeluaran')
+                    ->whereRelation('kategori', 'klasifikasi', 'operasional'),
+                'transaksis as investasi' => fn (Builder $query) => $query
+                    ->where('arah', 'pengeluaran')
+                    ->whereRelation('kategori', 'klasifikasi', 'investasi'),
+            ], 'total')
             ->first();
 
         return $siklus !== null

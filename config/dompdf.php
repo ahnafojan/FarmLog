@@ -4,6 +4,10 @@ return [
 
     'report_timezone' => env('REPORT_TIMEZONE', 'Asia/Jakarta'),
 
+    'report_rows_per_pdf' => (int) env('REPORT_ROWS_PER_PDF', 300),
+
+    'report_timeout_seconds' => (int) env('REPORT_TIMEOUT_SECONDS', 180),
+
     /*
     |--------------------------------------------------------------------------
     | Settings

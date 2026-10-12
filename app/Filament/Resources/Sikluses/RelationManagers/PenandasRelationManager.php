@@ -9,6 +9,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PenandasRelationManager extends RelationManager
 {
@@ -25,12 +26,13 @@ class PenandasRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table->recordTitleAttribute('nama')->defaultSort('tanggal')->stackedOnMobile()->columns([
-            TextColumn::make('nama')->label('Penanda')->wrap(),
-            TextColumn::make('tanggal')->label('Tanggal')
-                ->formatStateUsing(fn (SiklusPenanda $record): string => $record->tanggal->locale('id')->translatedFormat('d M Y')),
-        ])->recordActions([
-            EditAction::make()->label('Ubah tanggal')->button()->outlined(),
-        ]);
+        return $table->modifyQueryUsing(fn (Builder $query): Builder => $query->with('siklus.usaha'))
+            ->recordTitleAttribute('nama')->defaultSort('tanggal')->stackedOnMobile()->columns([
+                TextColumn::make('nama')->label('Penanda')->wrap(),
+                TextColumn::make('tanggal')->label('Tanggal')
+                    ->formatStateUsing(fn (SiklusPenanda $record): string => $record->tanggal->locale('id')->translatedFormat('d M Y')),
+            ])->recordActions([
+                EditAction::make()->label('Ubah tanggal')->button()->outlined(),
+            ]);
     }
 }

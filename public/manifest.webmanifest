@@ -7,8 +7,8 @@
     "start_url": "/app",
     "scope": "/",
     "display": "standalone",
-    "background_color": "#FFBA00",
-    "theme_color": "#FFBA00",
+    "background_color": "#0096FF",
+    "theme_color": "#0096FF",
     "icons": [
         {
             "src": "/logos-pariwangi-192.png",

@@ -412,7 +412,6 @@
         @endif
     </table>
 
-    <p class="muted">Ringkasan seluruh periode untuk: {{ $siklusLabel }}.</p>
     <table class="summary">
         <tr>
             @if ($isSales)

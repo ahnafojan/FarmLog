@@ -47,7 +47,8 @@ class KategoriResource extends Resource
 
     public static function classificationLocked(?Kategori $record): bool
     {
-        return $record !== null && ($record->kode_sistem !== null || $record->transaksis()->withTrashed()->exists());
+        return $record !== null && ($record->kode_sistem !== null
+            || once(fn (): bool => $record->transaksis()->withTrashed()->exists()));
     }
 
     public static function form(Schema $schema): Schema

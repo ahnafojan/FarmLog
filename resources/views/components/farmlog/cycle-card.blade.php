@@ -32,7 +32,7 @@
                 <x-filament::icon icon="heroicon-o-inbox-stack" class="size-5 shrink-0" />
             </span>
             <div>
-                <dt>Populasi awal</dt>
+                <dt>Populasi tersisa</dt>
                 <dd>{{ number_format($cycle['jumlah'], 0, ',', '.') }} ekor</dd>
             </div>
         </div>

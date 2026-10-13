@@ -94,11 +94,32 @@
     & .fi-section { @apply min-w-0; }
 
     @media (width < 640px) {
+        & .fi-header { @apply flex-row flex-wrap items-start gap-3; }
+        & .fi-header > div:first-child:not(.fi-header-actions-ctn) { @apply min-w-0 flex-1; }
+        & .fi-header-heading { @apply text-xl leading-7; }
+        & .fi-header-subheading { @apply mt-1; }
+        & .fi-header-actions-ctn { @apply self-start; }
+        & .fi-page-content { @apply gap-y-5; }
         & .fi-section-header, & .fi-section-content { @apply p-4; }
         & .fi-input, & .fi-fo-textarea { @apply min-h-11 text-base; }
-        & .fi-btn { @apply min-h-11; }
-        & .fi-sc-actions .fi-ac { @apply grid grid-cols-1; }
-        & .fi-header-actions-ctn .fi-btn { @apply w-full; }
+        & .fi-btn { @apply min-h-11 w-auto flex-none; }
+        & .fi-sc-actions .fi-ac { @apply gap-2; }
+        & .fi-ta-table-stacked-on-mobile .fi-ta-cell:has(.fi-ta-actions) { @apply pt-3 pb-4; }
+    }
+}
+
+@media (width < 640px) {
+    .fi-resource-transaksis .fi-ta-header-toolbar {
+        @apply gap-2 p-3;
+
+        & > .fi-ta-actions:not(:has(*)) { @apply hidden; }
+        & > div:has(> .fi-ta-search-field) { @apply ms-0 w-full min-w-0 gap-2; }
+        & .fi-ta-search-field { @apply min-w-0 flex-1; }
+        & .fi-ta-search-field .fi-input { @apply min-h-11 text-base; }
+        & .fi-ta-filters-dropdown { @apply shrink-0; }
+        & .fi-ta-filters-dropdown > .fi-dropdown-trigger > .fi-icon-btn {
+            @apply size-11 rounded-lg bg-gray-50 ring-1 ring-gray-950/10 dark:bg-white/5 dark:ring-white/10;
+        }
     }
 }
 

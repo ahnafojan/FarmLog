@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\ExportLaporanPdf;
 use App\Models\Usaha;
+use App\Support\ExportGuard;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,7 @@ class DownloadLaporanController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request, Usaha $usaha, ExportLaporanPdf $export): StreamedResponse
+    public function __invoke(Request $request, Usaha $usaha, ExportLaporanPdf $export, ExportGuard $guard): StreamedResponse
     {
         abort_unless($request->user()->can('view', $usaha), 404);
 
@@ -31,7 +32,7 @@ class DownloadLaporanController extends Controller
         $bulanan = $data['periode'] === 'bulanan';
         $mulai = CarbonImmutable::create((int) $data['tahun'], $bulanan ? (int) $data['bulan'] : 1, 1)->startOfDay();
 
-        return $export->handle(
+        return $guard->run((int) $request->user()->getAuthIdentifier(), fn (): StreamedResponse => $export->handle(
             $request->user(),
             $usaha,
             $data['jenis'],
@@ -40,6 +41,6 @@ class DownloadLaporanController extends Controller
             $bulanan,
             $data['klasifikasi'] ?? 'semua',
             isset($data['sikluses_id']) ? (int) $data['sikluses_id'] : null,
-        );
+        ));
     }
 }

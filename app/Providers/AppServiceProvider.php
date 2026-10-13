@@ -8,7 +8,11 @@ use App\Models\Siklus;
 use App\Models\SiklusPenanda;
 use App\Models\Transaksi;
 use App\Models\Usaha;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -18,6 +22,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(CacheDashboardSummary $cache): void
     {
+        RateLimiter::for('export', fn (Request $request): Limit => Limit::perMinute(3)
+            ->by($request->user()->getAuthIdentifier())
+            ->response(function (Request $request, array $headers): Response {
+                $message = 'Batas ekspor tercapai. Maksimal 3 permintaan per menit. Silakan coba lagi nanti.';
+
+                return response($request->expectsJson() ? ['message' => $message] : $message, 429, $headers);
+            }));
+
         $invalidate = function (Model $model) use ($cache): void {
             if ($model instanceof Usaha) {
                 $usahaIds = [$model->getKey()];

@@ -134,26 +134,29 @@ class Laporan extends Page
     protected function exportPenjualanAction(): Action
     {
         return Action::make('exportPenjualan')
-            ->label('Export Penjualan & Laba')
-            ->icon(Heroicon::OutlinedArrowDownTray)
-            ->action(
-                function (): void {
-                    $this->downloadReport('penjualan');
-                }
-            );
+            ->label(view('filament.pages.export-button-label', ['label' => 'Export Penjualan & Laba', 'jenis' => 'penjualan']))
+            ->extraAttributes(['x-bind:disabled' => 'isExporting', 'wire:loading.attr' => null])
+            ->alpineClickHandler("exportReport('penjualan', () => \$wire.mountAction('exportPenjualan'))")
+            ->action(fn (): string => $this->getDownloadUrl('penjualan'));
     }
 
     protected function exportPengeluaranAction(): Action
     {
         return Action::make('exportPengeluaran')
-            ->label('Export Pengeluaran')
-            ->icon(Heroicon::OutlinedArrowDownTray)
+            ->label(view('filament.pages.export-button-label', ['label' => 'Export Pengeluaran', 'jenis' => 'pengeluaran']))
+            ->extraAttributes(['x-bind:disabled' => 'isExporting', 'wire:loading.attr' => null])
+            ->alpineClickHandler("exportReport('pengeluaran', () => \$wire.mountAction('exportPengeluaran'))")
             ->color('gray')
             ->modalHeading('Export laporan pengeluaran')
             ->modalDescription(
                 fn (): string => 'Periode: '.$this->getPeriodeLabel().' | Siklus: '.$this->getSiklusLabel()
             )
-            ->modalSubmitActionLabel('Unduh laporan')
+            ->modalSubmitAction(fn (Action $action): Action => $action
+                ->label(view('filament.pages.export-button-label', ['label' => 'Unduh laporan', 'jenis' => 'pengeluaran']))
+                ->extraAttributes(['x-bind:disabled' => 'isExporting', 'wire:loading.attr' => null]))
+            ->extraModalWindowAttributes([
+                'x-on:submit.capture.prevent.stop' => '$event.stopImmediatePropagation(); exportReport(\'pengeluaran\', () => $wire.callMountedAction())',
+            ])
             ->schema([
                 Select::make('klasifikasi')
                     ->label('Klasifikasi pengeluaran')
@@ -168,11 +171,7 @@ class Laporan extends Page
                         Rule::in(['semua', 'operasional', 'investasi']),
                     ]),
             ])
-            ->action(
-                function (array $data): void {
-                    $this->downloadReport('pengeluaran', $data['klasifikasi']);
-                }
-            );
+            ->action(fn (array $data): string => $this->getDownloadUrl('pengeluaran', $data['klasifikasi']));
     }
 
     /**
@@ -223,10 +222,10 @@ class Laporan extends Page
             ?? 'Siklus tidak tersedia';
     }
 
-    protected function downloadReport(
+    protected function getDownloadUrl(
         string $jenis,
         string $klasifikasi = 'semua',
-    ): void {
+    ): string {
         $user = Filament::auth()->user();
         $usaha = Filament::getTenant();
 
@@ -235,11 +234,11 @@ class Laporan extends Page
 
         $this->periode();
 
-        $this->redirect(route('laporan.download', [
+        return route('laporan.download', [
             'usaha' => $usaha->slug,
             'jenis' => $jenis,
             'klasifikasi' => $klasifikasi,
             ...$this->filters,
-        ]), navigate: false);
+        ]);
     }
 }

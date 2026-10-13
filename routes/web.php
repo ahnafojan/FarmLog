@@ -4,7 +4,7 @@ use App\Http\Controllers\DownloadLaporanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/app/{usaha:slug}/laporan/download', DownloadLaporanController::class)
-    ->middleware('auth')
+    ->middleware(['auth', 'throttle:export'])
     ->name('laporan.download');
 
 Route::get('/', function () {

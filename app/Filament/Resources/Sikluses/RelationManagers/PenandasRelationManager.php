@@ -27,6 +27,7 @@ class PenandasRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table->modifyQueryUsing(fn (Builder $query): Builder => $query->with('siklus.usaha'))
+            ->paginated(false)
             ->recordTitleAttribute('nama')->defaultSort('tanggal')->stackedOnMobile()->columns([
                 TextColumn::make('nama')->label('Penanda')->wrap(),
                 TextColumn::make('tanggal')->label('Tanggal')

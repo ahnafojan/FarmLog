@@ -110,12 +110,13 @@ test('schedule authorization does not query relationships per row', function (in
     $queries = filamentMeasuredQueries(
         fn () => Livewire::test(PenandasRelationManager::class, [
             'ownerRecord' => $owner, 'pageClass' => EditSiklus::class,
-        ])->assertCanSeeTableRecords($milestones),
+        ])->assertCanSeeTableRecords($milestones)
+            ->assertDontSeeHtml('class="fi-pagination'),
         "PenandasRelationManager ({$count} records)",
     );
 
     expect(count($queries))->toBeLessThanOrEqual(4);
-})->with([1, 10]);
+})->with([1, 10, 30]);
 
 test('cycle detail keeps a bounded query count including its schedule', function (int $count) {
     [, $cycle] = filamentPerformanceData($count);

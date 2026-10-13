@@ -144,7 +144,7 @@ class TransaksiResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->defaultSort('tanggal', 'desc')->columns([
+        return $table->defaultSort('tanggal', 'desc')->searchPlaceholder('Cari kategori')->columns([
             Split::make([
                 Stack::make([
                     TextColumn::make('kategori.nama')->label('Kategori')->searchable()

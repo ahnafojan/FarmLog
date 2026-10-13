@@ -1,4 +1,5 @@
-<x-filament-panels::page>
+<x-filament-panels::page x-data="laporanExport()">
+    <p x-cloak x-show="exportError" x-text="exportError" role="alert" class="text-sm text-danger-600 dark:text-danger-400"></p>
     <x-filament::section>
         <x-slot name="heading">
             Periode: {{ $this->getPeriodeLabel() }}

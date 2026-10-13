@@ -34,7 +34,6 @@ class GetSiklusCards
             ->pluck('jumlah', 'status');
 
         $cycles = $this->cardQuery($usaha)
-            ->select(['id', 'usahas_id', 'nama', 'status', 'tanggal_mulai', 'tanggal_selesai', 'populasi_awal', 'umur_masuk_hari'])
             ->where('status', $status)
             ->paginate(6, ['*'], 'cyclePage', total: (int) ($counts[$status] ?? 0));
 
@@ -56,6 +55,13 @@ class GetSiklusCards
     private function cardQuery(Usaha $usaha): HasMany
     {
         return $usaha->sikluses()
+            ->select(['id', 'usahas_id', 'nama', 'status', 'tanggal_mulai', 'tanggal_selesai', 'populasi_awal', 'umur_masuk_hari'])
+            ->withSum([
+                'transaksis as ekor_terjual' => fn (Builder $query): Builder => $query
+                    ->where('usahas_id', $usaha->id)
+                    ->where('arah', 'pemasukan')
+                    ->whereRaw('LOWER(TRIM(satuan)) = ?', ['ekor']),
+            ], 'qty')
             ->with([
                 'penandas' => fn (HasMany $query) => $query
                     ->whereNull('selesai_at')
@@ -120,7 +126,7 @@ class GetSiklusCards
             'status' => $siklus->status,
             'mulai' => $siklus->tanggal_mulai->locale('id')->translatedFormat('d M Y'),
             'selesai' => $siklus->tanggal_selesai?->locale('id')->translatedFormat('d M Y'),
-            'jumlah' => $siklus->populasi_awal,
+            'jumlah' => max(0, $siklus->populasi_awal - (float) $siklus->ekor_terjual),
             'umur' => max(
                 0,
                 $siklus->umur_masuk_hari

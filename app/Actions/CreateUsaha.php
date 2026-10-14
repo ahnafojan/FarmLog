@@ -4,9 +4,11 @@ namespace App\Actions;
 
 use App\Models\Usaha;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class CreateUsaha
 {
@@ -25,7 +27,8 @@ class CreateUsaha
             $usaha = new Usaha(['nama' => $data['nama'], 'rekap_dasar' => $defaults['rekap_default']]);
             $usaha->user()->associate($user);
             $usaha->jenis_usaha = $data['jenis_usaha'];
-            $usaha->save();
+            retry(3, fn (): bool => $usaha->save(), when: fn (Throwable $exception): bool => $exception instanceof UniqueConstraintViolationException
+                && $exception->index === 'usahas_slug_unique');
 
             foreach ($defaults['kategoris'] as $index => $category) {
                 $direction = $category['arah'] ?? 'pengeluaran';

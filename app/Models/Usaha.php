@@ -21,13 +21,7 @@ class Usaha extends Model implements HasName
     {
         static::creating(function (Usaha $usaha): void {
             $baseSlug = Str::slug($usaha->nama) ?: 'usaha';
-            $slug = $baseSlug;
-
-            for ($suffix = 2; in_array($slug, ['login', 'logout', 'new', 'password-reset', 'profile', 'register'], true) || static::withTrashed()->where('slug', $slug)->exists(); $suffix++) {
-                $slug = $baseSlug.'-'.$suffix;
-            }
-
-            $usaha->slug = $slug;
+            $usaha->slug = Str::substr($baseSlug, 0, 228).'-'.Str::lower((string) Str::ulid());
         });
     }
 

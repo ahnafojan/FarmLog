@@ -143,7 +143,7 @@ class ExportLaporanPdf
         $limit = max(1, (int) config('dompdf.report_rows_per_pdf', 300));
         $details = $this->detailsQuery($query, $data['jenis']);
         $count = (clone $details)->count();
-        $report = $this->summaryData($query, $data, $count);
+        $report = $this->summaryData($this->getFinancialSummary->handle($query), $data, $count);
 
         if (! $forceZip && $count <= $limit) {
             $path = $directory.'/'.$name.'.pdf';
@@ -168,14 +168,24 @@ class ExportLaporanPdf
             $this->writePdf($summaryPath, [...$report, 'transaksis' => collect(), 'summaryOnly' => true]);
             $this->addToArchive($zip, $summaryPath);
 
-            $groups = (clone $query)->select('sikluses_id')->distinct()
-                ->with('siklus:id,nama')->orderBy('sikluses_id')->lazy(100);
+            $groups = $this->getFinancialSummary->totalsQuery($query)
+                ->addSelect('transaksis.sikluses_id')
+                ->selectRaw('COUNT(CASE WHEN transaksis.arah = ? THEN 1 END) AS transaction_count', [
+                    $data['jenis'] === 'penjualan' ? 'pemasukan' : 'pengeluaran',
+                ])
+                ->groupBy('transaksis.sikluses_id')
+                ->with('siklus:id,nama')->orderBy('transaksis.sikluses_id')->get();
 
             foreach ($groups as $group) {
                 $groupQuery = (clone $query)->where('sikluses_id', $group->sikluses_id);
                 $groupDetails = $this->detailsQuery($groupQuery, $data['jenis']);
-                $groupCount = (clone $groupDetails)->count();
-                $groupData = $this->summaryData($groupQuery, [
+                $groupCount = (int) $group->transaction_count;
+                $groupSummary = $this->getFinancialSummary->fromTotals(
+                    (int) $group->pemasukan,
+                    (int) $group->operasional,
+                    (int) $group->investasi,
+                );
+                $groupData = $this->summaryData($groupSummary, [
                     ...$data,
                     'siklusLabel' => $group->siklus?->nama ?? 'Transaksi umum',
                 ], $groupCount);
@@ -231,14 +241,12 @@ class ExportLaporanPdf
     }
 
     /**
-     * @param  Builder<Transaksi>  $query
+     * @param  array{pemasukan: int, operasional: int, investasi: int, laba_bersih: int}  $summary
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function summaryData(Builder $query, array $data, int $count): array
+    private function summaryData(array $summary, array $data, int $count): array
     {
-        $summary = $this->getFinancialSummary->handle($query);
-
         return [
             ...$data,
             'totalPenjualan' => $summary['pemasukan'],

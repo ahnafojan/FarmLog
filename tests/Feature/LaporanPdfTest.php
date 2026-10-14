@@ -25,7 +25,7 @@ function laporanPdfData(string $jenis, array $transaksis = []): array
     ];
 }
 
-test('sales report displays the entered quantity unit and unit price', function (string $qty, string $expectedQuantity) {
+test('reports display the entered quantity unit and unit price', function (string $jenis, string $qty, string $expectedQuantity) {
     $transaksi = (new Transaksi([
         'tanggal' => '2026-10-01',
         'qty' => $qty,
@@ -34,32 +34,29 @@ test('sales report displays the entered quantity unit and unit price', function 
         'total' => (int) round((float) $qty * 12500),
     ]))->setRelation('kategori', null);
 
-    $view = $this->view('filament.pages.laporan-pdf', laporanPdfData('penjualan', [$transaksi]));
+    $view = $this->view('filament.pages.laporan-pdf', laporanPdfData($jenis, [$transaksi]));
 
     $view->assertSeeTextInOrder(['Jumlah', 'Harga satuan', $expectedQuantity, 'kg', 'Rp 12.500']);
-})->with([
+})->with(['penjualan', 'pengeluaran'])->with([
     'whole quantity' => ['10.000', '10'],
     'fractional quantity' => ['2.500', '2,5'],
     'three decimal places' => ['1.125', '1,125'],
 ]);
 
-test('sales report distinguishes missing unit prices from a zero price', function () {
+test('reports distinguish missing unit prices from a zero price', function (string $jenis) {
     $missing = (new Transaksi(['total' => 10000]))->setRelation('kategori', null);
     $zero = (new Transaksi(['qty' => 1, 'satuan' => 'ekor', 'harga_satuan' => 0, 'total' => 0]))
         ->setRelation('kategori', null);
 
-    $view = $this->view('filament.pages.laporan-pdf', laporanPdfData('penjualan', [$missing, $zero]));
+    $view = $this->view('filament.pages.laporan-pdf', laporanPdfData($jenis, [$missing, $zero]));
 
     $view->assertSeeTextInOrder(['Nominal', '-', '-', '-', '-', 'Rp 10.000', '1', 'ekor', 'Rp 0']);
-});
+})->with(['penjualan', 'pengeluaran']);
 
-test('expense report keeps its existing detail columns', function () {
+test('expense report renders an empty period with classification quantity and price headings', function () {
     $view = $this->view('filament.pages.laporan-pdf', laporanPdfData('pengeluaran'));
 
-    $view->assertSeeText('Klasifikasi')
-        ->assertDontSeeText('Harga satuan')
-        ->assertDontSeeText('Jumlah')
-        ->assertSeeText('Belum ada pengeluaran');
+    $view->assertSeeTextInOrder(['Klasifikasi', 'Jumlah', 'Harga satuan', 'Belum ada pengeluaran']);
 });
 
 test('sales report renders an empty period with the quantity and price headings', function () {

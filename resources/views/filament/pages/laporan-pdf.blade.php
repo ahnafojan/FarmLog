@@ -206,7 +206,7 @@
             background: #244b3d;
             color: #fff;
             font-size: 7pt;
-            text-align: left;
+            text-align: center
         }
 
         .expense-report .transactions th {
@@ -481,14 +481,12 @@
             <thead>
                 <tr>
                     <th style="width: 7%">No.</th>
-                    <th style="width: {{ $isSales ? '13%' : '16%' }}">Tanggal</th>
-                    <th style="width: {{ $isSales ? '18%' : '28%' }}">Kategori / catatan</th>
-                    <th style="width: {{ $isSales ? '14%' : '20%' }}">{{ $isSales ? 'Pembeli' : 'Klasifikasi' }}</th>
-                    @if ($isSales)
-                        <th style="width: 13%" class="nominal">Jumlah</th>
-                        <th style="width: 17%" class="nominal">Harga satuan</th>
-                    @endif
-                    <th style="width: {{ $isSales ? '18%' : '29%' }}" class="nominal">Nominal</th>
+                    <th style="width: 13%">Tanggal</th>
+                    <th style="width: 18%">Kategori / catatan</th>
+                    <th style="width: 14%">{{ $isSales ? 'Pembeli' : 'Klasifikasi' }}</th>
+                    <th style="width: 13%" class="nominal">Jumlah</th>
+                    <th style="width: 17%" class="nominal">Harga satuan</th>
+                    <th style="width: 18%" class="nominal">Nominal</th>
                 </tr>
             </thead>
             <tbody>
@@ -505,22 +503,20 @@
                         <td>
                             {{ $isSales ? ($transaksi->pembeli ?: '-') : ucfirst($transaksi->kategori?->klasifikasi ?? '-') }}
                         </td>
-                        @if ($isSales)
-                            <td class="nominal">
-                                {{ $transaksi->qty !== null ? rtrim(rtrim(number_format((float) $transaksi->qty, 3, ',', '.'), '0'), ',') : '-' }}
-                                {{ $transaksi->satuan }}
-                            </td>
-                            <td class="nominal">
-                                {{ $transaksi->harga_satuan !== null ? $rupiah($transaksi->harga_satuan) : '-' }}
-                            </td>
-                        @endif
+                        <td class="nominal">
+                            {{ $transaksi->qty !== null ? rtrim(rtrim(number_format((float) $transaksi->qty, 3, ',', '.'), '0'), ',') : '-' }}
+                            {{ $transaksi->satuan }}
+                        </td>
+                        <td class="nominal">
+                            {{ $transaksi->harga_satuan !== null ? $rupiah($transaksi->harga_satuan) : '-' }}
+                        </td>
                         <td class="nominal {{ $isSales ? 'positive' : 'negative' }}">
                             <strong>{{ $rupiah($transaksi->total) }}</strong>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $isSales ? 7 : 5 }}" class="empty">
+                        <td colspan="7" class="empty">
                             Belum ada {{ $isSales ? 'penjualan' : 'pengeluaran' }}
                             @if (!$isSales && $klasifikasi !== 'semua')
                                 {{ strtolower($klasifikasiLabel) }}

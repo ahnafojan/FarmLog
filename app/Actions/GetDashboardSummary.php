@@ -6,6 +6,8 @@ use App\Models\Transaksi;
 use App\Models\Usaha;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -70,6 +72,7 @@ class GetDashboardSummary
     private function calculate(Usaha $usaha, string $basis, CarbonImmutable $start, CarbonImmutable $end, bool $isMonthly): array
     {
         $dates = [$start->toDateString(), $end->toDateString()];
+        $interval = $isMonthly ? 'day' : 'month';
 
         $transactions = Transaksi::query()->where('transaksis.usahas_id', $usaha->id);
         $periodTransactions = clone $transactions;
@@ -77,15 +80,23 @@ class GetDashboardSummary
         if ($basis === 'tanggal_transaksi') {
             $periodTransactions->whereBetween('transaksis.tanggal', $dates)
                 ->where(fn (Builder $query) => $query->whereNull('sikluses_id')->orWhereHas('siklus'));
+            $totals = $this->totalsByPeriod($periodTransactions, 'transaksis.tanggal', $interval);
         } else {
-            $periodTransactions->where(function (Builder $query) use ($dates, $usaha): void {
-                $query->whereIn('sikluses_id', $usaha->sikluses()->select('id')
-                    ->where('status', 'selesai')->whereBetween('tanggal_selesai', $dates))
+            $completedCycles = $usaha->sikluses()->select(['id', 'tanggal_selesai'])
+                ->where('status', 'selesai')->whereBetween('tanggal_selesai', $dates);
+            $periodTransactions->where(function (Builder $query) use ($dates, $completedCycles): void {
+                $query->whereIn('sikluses_id', (clone $completedCycles)->select('id'))
                     ->orWhere(fn (Builder $general) => $general->whereNull('sikluses_id')->whereBetween('transaksis.tanggal', $dates));
             });
+            $completedTransactions = (clone $transactions)->joinSub(
+                $completedCycles, 'completed_cycles', 'completed_cycles.id', '=', 'transaksis.sikluses_id',
+            );
+            $generalTransactions = (clone $transactions)->whereNull('sikluses_id')->whereBetween('transaksis.tanggal', $dates);
+            $totals = $this->totalsByPeriod($completedTransactions, 'completed_cycles.tanggal_selesai', $interval)
+                ->unionAll($this->totalsByPeriod($generalTransactions, 'transaksis.tanggal', $interval));
         }
         $cycleData = $this->getSiklusCards->latestRunning($usaha);
-        $periodSummary = $this->periodSummary(clone $periodTransactions, $start, $end, $isMonthly ? 'day' : 'month', $basis);
+        $periodSummary = $this->periodSummary($totals->get(), $start, $end, $interval);
 
         return [
             'summary' => $periodSummary['summary'],
@@ -110,30 +121,32 @@ class GetDashboardSummary
 
     /**
      * @param  Builder<Transaksi>  $query
-     * @return array{summary: array<string, int>, chart: array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}}
      */
-    private function periodSummary(Builder $query, CarbonImmutable $start, CarbonImmutable $end, string $interval, string $basis): array
+    private function totalsByPeriod(Builder $query, string $dateColumn, string $interval): QueryBuilder
     {
-        $dateColumn = 'transaksis.tanggal';
-
-        if ($basis === 'siklus_selesai') {
-            $query->leftJoin('sikluses', 'sikluses.id', '=', 'transaksis.sikluses_id');
-            $dateColumn = 'COALESCE(sikluses.tanggal_selesai, transaksis.tanggal)';
-        }
-
         $bucket = $interval === 'day' ? $dateColumn : "DATE_FORMAT({$dateColumn}, '%Y-%m-01')";
-        $totals = $this->getFinancialSummary->totalsQuery($query)
+
+        return $this->getFinancialSummary->totalsQuery($query)
             ->selectRaw("{$bucket} AS period_date")
             ->groupByRaw($bucket)
-            ->toBase()->get()->keyBy('period_date');
+            ->toBase();
+    }
+
+    /**
+     * @param  Collection<int, object{period_date: string, pemasukan: numeric-string, operasional: numeric-string, investasi: numeric-string}>  $totals
+     * @return array{summary: array<string, int>, chart: array{labels: list<string>, pemasukan: list<int>, laba_bersih: list<int>}}
+     */
+    private function periodSummary(Collection $totals, CarbonImmutable $start, CarbonImmutable $end, string $interval): array
+    {
+        $periods = $totals->groupBy('period_date');
         $chart = ['labels' => [], 'pemasukan' => [], 'laba_bersih' => []];
 
         for ($date = $start; $date <= $end; $date = $date->add($interval, 1)) {
-            $total = $totals->get($date->toDateString());
+            $total = $periods->get($date->toDateString(), collect());
             $summary = $this->getFinancialSummary->fromTotals(
-                (int) ($total?->pemasukan ?? 0),
-                (int) ($total?->operasional ?? 0),
-                (int) ($total?->investasi ?? 0),
+                (int) $total->sum('pemasukan'),
+                (int) $total->sum('operasional'),
+                (int) $total->sum('investasi'),
             );
 
             $chart['labels'][] = $date->translatedFormat($interval === 'day' ? 'd M' : 'M Y');

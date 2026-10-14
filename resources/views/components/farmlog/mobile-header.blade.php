@@ -31,6 +31,12 @@
                     <x-filament::dropdown.list.item tag="a" :href="KategoriResource::getUrl(tenant: $tenant)"
                         icon="heroicon-o-tag">Kategori</x-filament::dropdown.list.item>
                 </x-filament::dropdown.list>
+                <x-filament::dropdown.list>
+                    <x-filament::dropdown.list.item tag="form" method="POST" :action="filament()->getLogoutUrl()"
+                        icon="heroicon-o-arrow-right-on-rectangle" color="danger">
+                        Keluar
+                    </x-filament::dropdown.list.item>
+                </x-filament::dropdown.list>
             </x-filament::dropdown>
         @else
             <a wire:navigate href="{{ filament()->getTenantRegistrationUrl() }}"

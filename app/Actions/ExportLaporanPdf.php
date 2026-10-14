@@ -2,12 +2,14 @@
 
 namespace App\Actions;
 
+use App\Models\Kategori;
 use App\Models\Transaksi;
 use App\Models\Usaha;
 use App\Models\User;
 use Barryvdh\DomPDF\PDF;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
@@ -112,9 +114,9 @@ class ExportLaporanPdf
         register_shutdown_function($cleanup);
 
         try {
-            $path = DB::transaction(fn (): string => $this->writeDocuments(
+            $path = $this->writeDocuments(
                 $query, $data, $directory, $namaFile, ! $bulanan && $siklusId === null,
-            ));
+            );
 
             return response()->streamDownload(
                 static function () use ($path, $cleanup): void {
@@ -140,89 +142,161 @@ class ExportLaporanPdf
      */
     private function writeDocuments(Builder $query, array $data, string $directory, string $name, bool $forceZip): string
     {
+        $snapshot = fopen($directory.'/snapshot.jsonl', 'x+b');
+
+        if ($snapshot === false) {
+            throw new RuntimeException('Snapshot laporan tidak dapat dibuat.');
+        }
+
+        try {
+            $archive = DB::transaction(function () use ($query, $data, $snapshot, $name, $forceZip): bool {
+                $archive = $this->snapshotDocuments($query, $data, $snapshot, $name, $forceZip);
+
+                if (! fflush($snapshot)) {
+                    throw new RuntimeException('Snapshot laporan tidak dapat disimpan.');
+                }
+
+                return $archive;
+            });
+
+            return $this->renderDocuments($snapshot, $data, $directory, $name, $archive);
+        } finally {
+            fclose($snapshot);
+        }
+    }
+
+    /**
+     * @param  Builder<Transaksi>  $query
+     * @param  array<string, mixed>  $data
+     * @param  resource  $snapshot
+     */
+    private function snapshotDocuments(Builder $query, array $data, mixed $snapshot, string $name, bool $forceZip): bool
+    {
         $limit = max(1, (int) config('dompdf.report_rows_per_pdf', 300));
         $details = $this->detailsQuery($query, $data['jenis']);
         $count = (clone $details)->count();
-        $report = $this->summaryData($this->getFinancialSummary->handle($query), $data, $count);
+        $report = $this->summaryData(
+            $this->getFinancialSummary->handle($query),
+            $data['siklusLabel'],
+            $count,
+        );
 
         if (! $forceZip && $count <= $limit) {
-            $path = $directory.'/'.$name.'.pdf';
-            $this->writePdf($path, [...$report, 'transaksis' => $details->limit($limit)->get()]);
+            $this->writeSnapshot($snapshot, $name.'.pdf', [...$report, 'transaksis' => $details->limit($limit)->get()]);
 
-            return $path;
+            return false;
         }
 
         if (! class_exists(ZipArchive::class)) {
             throw new RuntimeException('Ekstensi PHP zip diperlukan untuk mengunduh laporan besar.');
         }
 
-        $path = $directory.'/'.$name.'.zip';
-        $zip = new ZipArchive;
+        $this->writeSnapshot($snapshot, '000-ringkasan.pdf', [...$report, 'transaksis' => collect(), 'summaryOnly' => true]);
 
-        if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        $groups = $this->getFinancialSummary->totalsQuery($query)
+            ->addSelect('transaksis.sikluses_id')
+            ->selectRaw('COUNT(CASE WHEN transaksis.arah = ? THEN 1 END) AS transaction_count', [
+                $data['jenis'] === 'penjualan' ? 'pemasukan' : 'pengeluaran',
+            ])
+            ->groupBy('transaksis.sikluses_id')
+            ->with('siklus:id,nama')->orderBy('transaksis.sikluses_id')->get();
+
+        foreach ($groups as $group) {
+            $groupQuery = (clone $query)->where('sikluses_id', $group->sikluses_id);
+            $groupDetails = $this->detailsQuery($groupQuery, $data['jenis']);
+            $groupCount = (int) $group->transaction_count;
+            $groupSummary = $this->getFinancialSummary->fromTotals(
+                (int) $group->pemasukan,
+                (int) $group->operasional,
+                (int) $group->investasi,
+            );
+            $groupData = $this->summaryData($groupSummary, $group->siklus?->nama ?? 'Transaksi umum', $groupCount);
+            $prefix = $group->sikluses_id === null ? 'transaksi-umum' : 'siklus-'.$group->sikluses_id;
+            $part = 0;
+            $last = null;
+
+            do {
+                $page = clone $groupDetails;
+
+                if ($last !== null) {
+                    $page->where(fn (Builder $after) => $after
+                        ->where('tanggal', '>', $last->tanggal->toDateString())
+                        ->orWhere(fn (Builder $sameDay) => $sameDay
+                            ->where('tanggal', $last->tanggal->toDateString())->where('id', '>', $last->id)));
+                }
+
+                $rows = $page->limit($limit)->get();
+                $part++;
+                $this->writeSnapshot($snapshot, $prefix.'-bagian-'.sprintf('%03d', $part).'.pdf', [
+                    ...$groupData,
+                    'transaksis' => $rows,
+                    'partLabel' => 'Bagian '.$part.' dari '.max(1, (int) ceil($groupCount / $limit)),
+                    'rowOffset' => ($part - 1) * $limit,
+                ]);
+                $last = $rows->last();
+            } while ($part * $limit < $groupCount);
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  resource  $snapshot
+     * @param  array<string, mixed>  $data
+     */
+    private function writeSnapshot(mixed $snapshot, string $name, array $data): void
+    {
+        $line = json_encode(['name' => $name, 'data' => $data], JSON_THROW_ON_ERROR)."\n";
+
+        if (fwrite($snapshot, $line) !== strlen($line)) {
+            throw new RuntimeException('Snapshot laporan tidak dapat disimpan.');
+        }
+    }
+
+    /**
+     * @param  resource  $snapshot
+     * @param  array<string, mixed>  $data
+     */
+    private function renderDocuments(mixed $snapshot, array $data, string $directory, string $name, bool $archive): string
+    {
+        $path = $directory.'/'.$name.($archive ? '.zip' : '.pdf');
+        $zip = $archive ? new ZipArchive : null;
+
+        if ($zip !== null && $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new RuntimeException('Arsip laporan tidak dapat dibuat.');
         }
 
         try {
-            $summaryPath = $directory.'/000-ringkasan.pdf';
-            $this->writePdf($summaryPath, [...$report, 'transaksis' => collect(), 'summaryOnly' => true]);
-            $this->addToArchive($zip, $summaryPath);
+            rewind($snapshot);
 
-            $groups = $this->getFinancialSummary->totalsQuery($query)
-                ->addSelect('transaksis.sikluses_id')
-                ->selectRaw('COUNT(CASE WHEN transaksis.arah = ? THEN 1 END) AS transaction_count', [
-                    $data['jenis'] === 'penjualan' ? 'pemasukan' : 'pengeluaran',
-                ])
-                ->groupBy('transaksis.sikluses_id')
-                ->with('siklus:id,nama')->orderBy('transaksis.sikluses_id')->get();
+            while (($line = fgets($snapshot)) !== false) {
+                $document = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
+                $rows = new Collection(array_map(static function (array $row): Transaksi {
+                    $category = $row['kategori'];
+                    unset($row['kategori']);
 
-            foreach ($groups as $group) {
-                $groupQuery = (clone $query)->where('sikluses_id', $group->sikluses_id);
-                $groupDetails = $this->detailsQuery($groupQuery, $data['jenis']);
-                $groupCount = (int) $group->transaction_count;
-                $groupSummary = $this->getFinancialSummary->fromTotals(
-                    (int) $group->pemasukan,
-                    (int) $group->operasional,
-                    (int) $group->investasi,
-                );
-                $groupData = $this->summaryData($groupSummary, [
-                    ...$data,
-                    'siklusLabel' => $group->siklus?->nama ?? 'Transaksi umum',
-                ], $groupCount);
-                $prefix = $group->sikluses_id === null ? 'transaksi-umum' : 'siklus-'.$group->sikluses_id;
-                $part = 0;
-                $last = null;
+                    return (new Transaksi)->forceFill($row)->setRelation(
+                        'kategori', $category === null ? null : (new Kategori)->forceFill($category),
+                    );
+                }, $document['data']['transaksis']));
+                $documentPath = $directory.'/'.$document['name'];
+                $this->writePdf($documentPath, [...$data, ...$document['data'], 'transaksis' => $rows]);
 
-                do {
-                    $page = clone $groupDetails;
+                if ($zip !== null) {
+                    $this->addToArchive($zip, $documentPath);
+                }
+            }
 
-                    if ($last !== null) {
-                        $page->where(fn (Builder $after) => $after
-                            ->where('tanggal', '>', $last->tanggal->toDateString())
-                            ->orWhere(fn (Builder $sameDay) => $sameDay
-                                ->where('tanggal', $last->tanggal->toDateString())->where('id', '>', $last->id)));
-                    }
-
-                    $rows = $page->limit($limit)->get();
-                    $part++;
-                    $partPath = $directory.'/'.$prefix.'-bagian-'.sprintf('%03d', $part).'.pdf';
-                    $this->writePdf($partPath, [
-                        ...$groupData,
-                        'transaksis' => $rows,
-                        'partLabel' => 'Bagian '.$part.' dari '.max(1, (int) ceil($groupCount / $limit)),
-                        'rowOffset' => ($part - 1) * $limit,
-                    ]);
-                    $this->addToArchive($zip, $partPath);
-                    $last = $rows->last();
-                } while ($part * $limit < $groupCount);
+            if (! feof($snapshot)) {
+                throw new RuntimeException('Snapshot laporan tidak dapat dibaca.');
             }
         } catch (Throwable $exception) {
-            $zip->close();
+            $zip?->close();
 
             throw $exception;
         }
 
-        if (! $zip->close()) {
+        if ($zip !== null && ! $zip->close()) {
             throw new RuntimeException('Arsip laporan tidak dapat disimpan.');
         }
 
@@ -242,13 +316,12 @@ class ExportLaporanPdf
 
     /**
      * @param  array{pemasukan: int, operasional: int, investasi: int, laba_bersih: int}  $summary
-     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function summaryData(array $summary, array $data, int $count): array
+    private function summaryData(array $summary, string $siklusLabel, int $count): array
     {
         return [
-            ...$data,
+            'siklusLabel' => $siklusLabel,
             'totalPenjualan' => $summary['pemasukan'],
             'totalOperasional' => $summary['operasional'],
             'totalInvestasi' => $summary['investasi'],

@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\Models\Siklus;
+use App\Models\Transaksi;
 use App\Models\Usaha;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,15 @@ class CreateSiklus
             'catatan' => ['nullable', 'string', 'max:5000'],
         ])->validate();
 
-        return DB::transaction(function () use ($usaha, $data): Siklus {
+        $total = (int) $data['populasi_awal'] * (int) $data['harga_bibit'];
+
+        if ($total > Transaksi::MAX_TOTAL) {
+            throw ValidationException::withMessages([
+                'harga_bibit' => 'Total biaya bibit (jumlah awal × harga per ekor) maksimal Rp'.number_format(Transaksi::MAX_TOTAL, 0, ',', '.').'.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($usaha, $data, $total): Siklus {
             $category = $usaha->kategoris()->where('kode_sistem', 'bibit')
                 ->where('arah', 'pengeluaran')->where('klasifikasi', 'operasional')->where('aktif', true)->first();
 
@@ -59,7 +68,7 @@ class CreateSiklus
                 'qty' => $siklus->populasi_awal,
                 'satuan' => 'ekor',
                 'harga_satuan' => $data['harga_bibit'],
-                'total' => $siklus->populasi_awal * $data['harga_bibit'],
+                'total' => $total,
             ]);
             $transaksi->kategori()->associate($category);
             $transaksi->siklus()->associate($siklus);

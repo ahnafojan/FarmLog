@@ -34,7 +34,7 @@ class SaveTransaksi
                 'qty' => ['nullable', 'numeric', 'gt:0', 'max:999999999.999', 'decimal:0,3'],
                 'satuan' => ['nullable', 'string', 'max:20'],
                 'harga_satuan' => ['nullable', 'integer', 'min:0', 'max:1000000000000'],
-                'total' => ['required', 'integer', 'min:0', 'max:1000000000000000'],
+                'total' => ['required', 'integer', 'min:0', 'max:'.Transaksi::MAX_TOTAL],
                 'pembeli' => ['nullable', 'string', 'max:150'],
                 'catatan' => ['nullable', 'string', 'max:5000'],
             ])->validate();

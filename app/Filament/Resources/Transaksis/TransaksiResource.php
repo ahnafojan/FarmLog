@@ -131,7 +131,7 @@ class TransaksiResource extends Resource
                 ->stripCharacters('.')
                 ->required()->visible(fn (Get $get): bool => static::usesQuantity($get))
                 ->live(onBlur: true)->afterStateUpdated(fn (Get $get, Set $set) => static::calculateTotal($get, $set)),
-            TextInput::make('total')->label('Total')->placeholder('Contoh: 3.000.000')->prefix('Rp')->integer()->minValue(0)->maxValue(1000000000000000)
+            TextInput::make('total')->label('Total')->placeholder('Contoh: 3.000.000')->prefix('Rp')->integer()->minValue(0)->maxValue(Transaksi::MAX_TOTAL)
                 ->mask(RawJs::make(<<<'JS'
                     $money($input, ',', '.', 0)
                     JS))

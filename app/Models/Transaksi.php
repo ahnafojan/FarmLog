@@ -10,6 +10,8 @@ class Transaksi extends Model
 {
     use SoftDeletes;
 
+    public const int MAX_TOTAL = 1_000_000_000_000_000;
+
     protected $fillable = ['arah', 'tanggal', 'qty', 'satuan', 'harga_satuan', 'total', 'pembeli', 'catatan'];
 
     protected function casts(): array

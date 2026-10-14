@@ -268,7 +268,7 @@
         }
 
         .total-line td {
-            padding: 10pt 7pt;
+            padding: 10pt 7pt; //////////////////////////////////////
             font-size: 10pt;
             font-weight: bold;
         }
@@ -301,7 +301,67 @@
             bottom: -29pt;
             left: 0;
             right: 0;
-            border-top: 1pt solid #e0e7e3;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             padding-top: 7pt;
             font-size: 7pt;
             color: #73817b;
@@ -370,6 +430,7 @@
             <col style="width: 35%">
         </colgroup>
         <tr>
+
             <td>
                 <p class="label">PERIODE LAPORAN</p>
                 <p class="value">{{ $periode }}</p>

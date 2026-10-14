@@ -12,7 +12,7 @@ return new class extends Migration
     {
         DB::table('kategoris')->where('klasifikasi', 'langsung')->update(['klasifikasi' => 'operasional']);
 
-        DB::statement('ALTER TABLE kategoris DROP CHECK kategoris_arah_klasifikasi_chk');
+        $this->dropClassificationConstraint();
         DB::statement("ALTER TABLE kategoris ADD CONSTRAINT kategoris_arah_klasifikasi_chk CHECK (
             (arah = 'pengeluaran' AND klasifikasi IS NOT NULL AND klasifikasi IN ('operasional', 'investasi'))
             OR (arah = 'pemasukan' AND klasifikasi IS NULL)
@@ -25,10 +25,17 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement('ALTER TABLE kategoris DROP CHECK kategoris_arah_klasifikasi_chk');
+        $this->dropClassificationConstraint();
         DB::statement("ALTER TABLE kategoris ADD CONSTRAINT kategoris_arah_klasifikasi_chk CHECK (
             (arah = 'pengeluaran' AND klasifikasi IS NOT NULL AND klasifikasi IN ('langsung', 'operasional', 'investasi'))
             OR (arah = 'pemasukan' AND klasifikasi IS NULL)
         )");
+    }
+
+    private function dropClassificationConstraint(): void
+    {
+        $constraintType = DB::connection()->isMaria() ? 'CONSTRAINT' : 'CHECK';
+
+        DB::statement("ALTER TABLE kategoris DROP {$constraintType} kategoris_arah_klasifikasi_chk");
     }
 };
